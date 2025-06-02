@@ -67,9 +67,7 @@ class PlayGame extends Phaser.Scene {
             this.time.delayedCall(5000, () => {
                 instructions.style.display = 'none';
             });
-        }
-
-        this.isDiving = false;
+        }        this.isDiving = false;
         this.isJumping = false;      // Track if jump is in progress
         this.jumpHoldTime = 0;       // How long jump key is held
         this.maxJumpHold = 500;      // Max ms for extra loft
@@ -232,10 +230,37 @@ class PlayGame extends Phaser.Scene {
         this.keyESC = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
         this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
 
-        // Listen for pointerdown and keydown for jump/dive
-        this.input.on("pointerdown", this.handleJumpOrDive, this);
-        this.input.keyboard.on('keydown-SPACE', this.handleJumpOrDive, this);
+        // Listen for pointerdown and keydown for jump/dive/dash
+        this.input.on("pointerdown", this.handlePointerDown, this);
+        this.input.on("pointerup", this.handlePointerUp, this); // pointerup for instant jump
+        this.input.keyboard.on('keydown-SPACE', this.handleSpaceDown, this);
         this.input.keyboard.on('keyup-SPACE', this.endJumpHold, this);
+    }    handleSpaceDown(event) {
+        if (this.isPlayerGrounded()) {
+            this.handleJumpOrDive();
+        } else {
+            this.handleJumpOrDive();
+        }
+    }
+
+    handlePointerDown(pointer, event) {
+        if (this.isPlayerGrounded()) {
+            this.handleJumpOrDive();
+        } else {
+            this.handleJumpOrDive();
+        }
+    }
+
+    handlePointerUp(pointer, event) {
+        // If a jump is queued and the timer is still running, jump immediately
+        if (this.jumpQueued) {
+            if (this.dashTapTimer) {
+                clearTimeout(this.dashTapTimer);
+                this.dashTapTimer = null;
+            }
+            this.handleJumpOrDive();
+            this.jumpQueued = false;
+        }
     }
 
     handleJumpOrDive() {
@@ -275,6 +300,7 @@ class PlayGame extends Phaser.Scene {
 
     endJumpHold() {
         this.isJumping = false;
+        this.jumpQueued = false;
     }
 
     // Add this helper method
@@ -385,9 +411,7 @@ class PlayGame extends Phaser.Scene {
         
         this.cameras.main.shake(500, 0.02);
         this.player.setTint(0xff0000);
-    }
-
-    update(time, delta) {
+    }    update(time, delta) {
         if (this.gameState.gameOver) {
             if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
                 this.domElements.gameOverScreen.style.display = 'none';
@@ -398,9 +422,7 @@ class PlayGame extends Phaser.Scene {
                 this.scene.start("SceneSwitcher");
             }
             return;
-        }        
-        
-        // Handle ESC key
+        }        // Handle ESC key
         if (Phaser.Input.Keyboard.JustDown(this.keyESC)) {
             // Ensure UI elements are hidden when leaving the scene
             if (this.domElements.gameOverScreen) {
@@ -415,10 +437,8 @@ class PlayGame extends Phaser.Scene {
 
         // Handle spacebar jump
         if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
-            this.handleJumpOrDive();
-        }
-
-        // Check if player fell off screen
+            this.handleJumpOrDive(); // Fixed: Use handleJumpOrDive instead of jump
+        }        // Check if player fell off screen
         if (this.player.y > this.sys.game.config.height) {
             this.triggerGameOver("Fell off the street! HOW?!?!?!");
             return;
@@ -426,7 +446,6 @@ class PlayGame extends Phaser.Scene {
 
         // Keep player at fixed X position
         this.player.x = window.gameOptions.playerStartPosition;
-
         // Update collision cooldown
         if (this.gameState.collisionCooldown > 0) {
             this.gameState.collisionCooldown--;
@@ -502,8 +521,7 @@ class PlayGame extends Phaser.Scene {
             if (this.isDiving) {
                 this.isDiving = false;
                 this.player.setTint(0x0088ff);
-            }
-            this.isJumping = false;
+            }            this.isJumping = false;
             this.playerJumps = 0;  // Reset jump count when landing
         }
 
