@@ -1,0 +1,154 @@
+body {
+    background: #000000;
+    padding: 0px;
+    margin: 0px;
+    font-family: 'Arial', sans-serif;
+    overflow: hidden;
+}
+
+canvas {
+    display: block;
+    margin: 0;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1;
+}
+
+/* Game UI Overlay */
+.game-ui {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10;
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+}
+
+.ui-top {
+    display: flex;
+    justify-content: space-between;
+    padding: 20px;
+    align-items: flex-start;
+}
+
+.ui-left {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ui-right {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-align: right;
+}
+
+.score-display {
+    font-size: 28px;
+    font-weight: bold;
+    color: #00ff00;
+}
+
+.level-display {
+    font-size: 20px;
+    color: #ffff00;
+}
+
+.speed-display {
+    font-size: 16px;
+    color: #00ccff;
+}
+
+.time-display {
+    font-size: 24px;
+    font-weight: bold;
+    color: #ff6600;
+}
+
+.momentum-display {
+    font-size: 18px;
+    color: #ff00ff;
+}
+
+.instructions {
+    display: none; /* Initially hidden */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    font-size: 16px;
+    color: #cccccc;
+    background: rgba(0,0,0,0.7);
+    padding: 15px;
+    border-radius: 8px;
+    max-width: 400px;
+    z-index: 1000;
+}
+
+.game-over-screen {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    background: rgba(0,0,0,0.9);
+    padding: 40px;
+    border-radius: 12px;
+    border: 3px solid #ff0000;
+    display: none;
+}
+
+.game-over-title {
+    font-size: 48px;
+    color: #ff0000;
+    margin-bottom: 20px;
+    font-weight: bold;
+}
+
+.game-over-reason {
+    font-size: 24px;
+    color: #ffff00;
+    margin-bottom: 15px;
+}
+
+.game-over-score {
+    font-size: 20px;
+    color: #00ff00;
+    margin-bottom: 20px;
+}
+
+.game-over-controls {
+    font-size: 16px;
+    color: #cccccc;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .ui-top {
+        padding: 10px;
+    }
+    .score-display { font-size: 24px; }
+    .level-display { font-size: 18px; }
+    .time-display { font-size: 20px; }
+    .instructions { 
+        font-size: 14px; 
+        padding: 10px;
+        max-width: 300px;
+    }
+    .game-over-title { font-size: 36px; }
+    .game-over-reason { font-size: 20px; }
+}
+
+@media (max-width: 480px) {
+    .score-display { font-size: 20px; }
+    .level-display { font-size: 16px; }
+    .time-display { font-size: 18px; }
+    .game-over-title { font-size: 28px; }
+}

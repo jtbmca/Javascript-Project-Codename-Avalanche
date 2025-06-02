@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+	<head>
+        <link rel="stylesheet" href="./css/styles.css">
+</head>
+	<body>
+        <!-- Game UI Overlay -->
+        <div class="game-ui" id="gameUI">
+            <div class="ui-top">
+                <div class="ui-left">
+                    <div class="score-display" id="scoreDisplay">Score: 0</div>
+                    <div class="level-display" id="levelDisplay">Level: 1</div>
+                    <div class="speed-display" id="speedDisplay">Speed: 350</div>
+                </div>
+                <div class="ui-right">
+                    <div class="time-display" id="timeDisplay">Time: 60s</div>
+                    <div class="momentum-display" id="momentumDisplay">Momentum: 100%</div>
+                </div>
+            </div>
+            
+            <div class="instructions" id="instructionsDisplay" style="display: none;">
+                <strong>Street Runner</strong><br>
+                Avoid pedestrians on the busy street!<br>
+                <br>
+                <strong>Controls:</strong><br>
+                SPACE: Jump | Hold SPACE: Higher Jump<br>
+                Double-tap SPACE: Quick Dash<br>
+                ESC: Return to Menu<br>
+                <br>
+                <em>Bumping into pedestrians slows you down!</em>
+            </div> 
+            
+            <div class="game-over-screen" id="gameOverScreen">
+                <div class="game-over-title">GAME OVER</div>
+                <div class="game-over-reason" id="gameOverReason">Time's up!</div>
+                <div class="game-over-score" id="gameOverScore">Final Score: 0</div>
+                <div class="game-over-controls">
+                    Press SPACE to restart<br>
+                    Press ESC for main menu
+                </div> 
+            </div>
+        </div>
+        <!-- Add defer to ensure scripts load in correct order -->
+        <script defer src="./scenes/phaser.min.js"></script>
+        <script defer src="./scenes/stage1.js"></script>
+        <script defer src="./scenes/dungeon1.js"></script>
+        <script defer src="./scenes/stage2.js"></script>
+        <script defer src="./scenes/sceneswitcher.js"></script>
+        <script defer src="main.js"></script>
+	</body>
+    </html>
