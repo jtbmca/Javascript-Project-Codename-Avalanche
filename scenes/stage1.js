@@ -15,9 +15,9 @@ window.gameOptions = window.gameOptions || {
     momentumRecoveryRate: 0.5 // 0.5% recovery per frame
 };
 
-class PlayGame extends Phaser.Scene {
+class Stage1 extends Phaser.Scene {
     constructor() {
-        super("PlayGame");
+        super("Stage1");
     }
 
     preload() {
@@ -232,9 +232,11 @@ class PlayGame extends Phaser.Scene {
 
         // Listen for pointerdown and keydown for jump/dive/dash
         this.input.on("pointerdown", this.handlePointerDown, this);
-        this.input.on("pointerup", this.handlePointerUp, this); // pointerup for instant jump
-        this.input.keyboard.on('keydown-SPACE', this.handleSpaceDown, this);
-        this.input.keyboard.on('keyup-SPACE', this.endJumpHold, this);
+        this.input.on("pointerup", this.handlePointerUp, this);
+        
+        // Make spacebar behave like pointer events
+        this.input.keyboard.on('keydown-SPACE', () => this.handlePointerDown(), this);
+        this.input.keyboard.on('keyup-SPACE', () => this.handlePointerUp(), this);
     }    handleSpaceDown(event) {
         if (this.isPlayerGrounded()) {
             this.handleJumpOrDive();
@@ -254,10 +256,7 @@ class PlayGame extends Phaser.Scene {
     handlePointerUp(pointer, event) {
         // If a jump is queued and the timer is still running, jump immediately
         if (this.jumpQueued) {
-            if (this.dashTapTimer) {
-                clearTimeout(this.dashTapTimer);
-                this.dashTapTimer = null;
-            }
+
             this.handleJumpOrDive();
             this.jumpQueued = false;
         }
@@ -435,10 +434,7 @@ class PlayGame extends Phaser.Scene {
             return;
         }
 
-        // Handle spacebar jump
-        if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
-            this.handleJumpOrDive(); // Fixed: Use handleJumpOrDive instead of jump
-        }        // Check if player fell off screen
+
         if (this.player.y > this.sys.game.config.height) {
             this.triggerGameOver("Fell off the street! HOW?!?!?!");
             return;
@@ -530,4 +526,4 @@ class PlayGame extends Phaser.Scene {
     }
 }
 
-window.PlayGame = PlayGame;
+window.Stage1 = Stage1;

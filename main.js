@@ -2,7 +2,7 @@ let gameConfig = {
     type: Phaser.AUTO,
     width: 1336,
     height: 768,
-    scene: [SceneSwitcher, PlayGame, Dungeon1, Stage2], // Verified correct class names
+    scene: [SceneSwitcher, Stage1, Dungeon1, Stage2], // Verified correct class names
     backgroundColor: '#B056F5',
     physics: {
         default: "arcade"

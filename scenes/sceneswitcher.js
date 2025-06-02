@@ -50,7 +50,7 @@ class SceneSwitcher extends Phaser.Scene {
         // Check for key presses in update loop for more reliable detection
         if (Phaser.Input.Keyboard.JustDown(this.key1) || Phaser.Input.Keyboard.JustDown(this.keyNumpad1)) {
             console.log("Starting Stage 1...");
-            this.scene.start("PlayGame");
+            this.scene.start("Stage1");
         }
         
         if (Phaser.Input.Keyboard.JustDown(this.key2) || Phaser.Input.Keyboard.JustDown(this.keyNumpad2)) {
