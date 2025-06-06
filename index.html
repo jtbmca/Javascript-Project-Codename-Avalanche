@@ -23,9 +23,9 @@
                 Avoid pedestrians on the busy street!<br>
                 <br>
                 <strong>Controls:</strong><br>
-                Tap/Click/SPACE: Jump | Hold Tap/Click/SPACE: Higher Jump<br>
+                Tap/Click/SPACE/JUMP Button: Jump | Hold Tap/Click/SPACE: Higher Jump<br> <!-- Updated instructions -->
                 <br>
-                shift/doubletap: Dash|
+                shift/doubletap/DASH Button: Dash| <!-- Updated instructions -->
                 ESC: Return to Menu<br>
                 <br>
                 <em>Bumping into pedestrians slows you down!</em>
@@ -35,10 +35,17 @@
                 <div class="game-over-reason" id="gameOverReason">Time's up!</div>
                 <div class="game-over-score" id="gameOverScore">Final Score: 0</div>
                 <div class="game-over-controls">
-                    Press SPACE to restart<br>
-                    Press ESC for main menu
+                    <!-- Mobile/Touch Controls Added -->
+                    <button id="gameOverRestartButtonMobile" class="game-over-btn">RESTART</button>
+                    <button id="gameOverMenuButtonMobile" class="game-over-btn">MENU</button>
+                    <!-- Keyboard Instructions (original) -->
+                    <div class="keyboard-instructions" id="gameOverKeyboardInstructions">
+                        Press SPACE to restart<br>
+                        Press ESC for main menu
+                    </div>
                 </div> 
             </div>
+            <button id="jumpButton" class="jump-btn">JUMP</button> <!-- Added Jump Button -->
             <button id="dashButton" class="dash-btn">DASH</button>
         </div>
         <!-- Add defer to ensure scripts load in correct order -->

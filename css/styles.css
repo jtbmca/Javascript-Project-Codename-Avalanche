@@ -23,7 +23,7 @@ canvas {
     left: 0;
     width: 100%;
     height: 100%;
-    pointer-events: none;
+    pointer-events: none; /* Default to none for overlay */
     z-index: 10;
     color: white;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
@@ -73,7 +73,7 @@ canvas {
 
 .momentum-display {
     font-size: 18px;
-    color: #ff00ff;
+    color: #ff00ff; /* Original color */
 }
 
 .instructions {
@@ -103,6 +103,7 @@ canvas {
     border-radius: 12px;
     border: 3px solid #ff0000;
     display: none;
+    pointer-events: auto; /* Allow clicks on game over screen elements */
 }
 
 .game-over-title {
@@ -129,6 +130,47 @@ canvas {
     color: #cccccc;
 }
 
+/* Game Over Buttons Added */
+.game-over-btn {
+    padding: 12px 24px;
+    font-size: 1.1em;
+    border-radius: 8px;
+    background-color: #333; /* Simple styling */
+    color: white;
+    border: 2px solid #555;
+    margin: 8px;
+    cursor: pointer;
+    pointer-events: auto; /* Ensure clickable */
+}
+
+.game-over-btn:hover {
+    background-color: #555;
+}
+
+.keyboard-instructions { /* Original class for keyboard instructions */
+    margin-top: 15px;
+    font-size: 16px;
+    color: #cccccc;
+}
+
+
+/* Jump Button Added */
+.jump-btn {
+    position: absolute;
+    bottom: 30px;
+    left: 30px; /* Position on the left */
+    padding: 18px 32px;
+    font-size: 1.5em;
+    border-radius: 12px;
+    background: #4CAF50; /* Green color for jump */
+    color: white;
+    border: none;
+    opacity: 0.85;
+    z-index: 9999; 
+    pointer-events: auto; /* Ensure it can receive events */
+}
+
+
 /* Dash Button */
 .dash-btn {
     position: absolute;
@@ -141,7 +183,7 @@ canvas {
     color: #222;
     border: none;
     opacity: 0.85;
-    z-index: 9999; /* Make sure it's above the Phaser canvas */
+    z-index: 9999; 
     pointer-events: auto; /* Ensure it can receive events */
 }
 
@@ -160,6 +202,15 @@ canvas {
     }
     .game-over-title { font-size: 36px; }
     .game-over-reason { font-size: 20px; }
+    /* Added responsive for new buttons */
+    .jump-btn, .dash-btn {
+        padding: 15px 25px;
+        font-size: 1.2em;
+    }
+    .game-over-btn {
+        padding: 10px 20px;
+        font-size: 1em;
+    }
 }
 
 @media (max-width: 480px) {
@@ -167,4 +218,12 @@ canvas {
     .level-display { font-size: 16px; }
     .time-display { font-size: 18px; }
     .game-over-title { font-size: 28px; }
+     /* Added responsive for new buttons */
+    .jump-btn, .dash-btn {
+        padding: 12px 20px;
+        font-size: 1em;
+        bottom: 20px;
+    }
+    .jump-btn { left: 20px; }
+    .dash-btn { right: 20px; }
 }
