@@ -141,7 +141,8 @@ canvas {
     color: #222;
     border: none;
     opacity: 0.85;
-    z-index: 1000;
+    z-index: 9999; /* Make sure it's above the Phaser canvas */
+    pointer-events: auto; /* Ensure it can receive events */
 }
 
 /* Responsive Design */

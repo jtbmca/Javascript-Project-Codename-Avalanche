@@ -79,24 +79,32 @@ class Stage1 extends Phaser.Scene {
         this.dashCooldown = 1000; // ms cooldown between dashes
         this.lastDashTime = 0;
 
-        this.lastPointerTapTime = 0;
-        this.doubleTapThreshold = 120; // ms window for double-tap
-        this.lastPointerTapWasGrounded = false;
-        this.lastPointerTapWasNotDiving = true;
-
+        // --- DASH BUTTON SETUP (place at the very end of create) ---
         const dashBtn = document.getElementById('dashButton');
+        const scene = this; // Capture the Phaser scene context
+
         if (dashBtn) {
-            dashBtn.addEventListener('touchstart', (e) => {
+            dashBtn.addEventListener('touchstart', function(e) {
                 e.preventDefault();
-                if (this.dashReady && this.isPlayerGrounded()) {
-                    this.doDash();
-                    this.dashReady = false;
-                    this.lastDashTime = this.time.now;
+                console.log("DASH BUTTON TOUCH");
+                if (scene.dashReady && scene.isPlayerGrounded()) {
+                    scene.doDash();
+                    scene.dashReady = false;
+                    scene.lastDashTime = scene.time.now;
                 }
             });
 
-            // Hide dash button if any keyboard key is pressed
-            window.addEventListener('keydown', () => {
+            dashBtn.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                console.log("DASH BUTTON CLICKED");
+                if (scene.dashReady && scene.isPlayerGrounded()) {
+                    scene.doDash();
+                    scene.dashReady = false;
+                    scene.lastDashTime = scene.time.now;
+                }
+            });
+
+            window.addEventListener('keydown', function() {
                 dashBtn.style.display = 'none';
             });
         }
@@ -263,33 +271,9 @@ class Stage1 extends Phaser.Scene {
         this.pointerIsDown = false;
         this.pointerJustDown = false;
 
-        this.input.on('pointerdown', (pointer) => {
+        this.input.on('pointerdown', () => {
             this.pointerIsDown = true;
             this.pointerJustDown = true;
-
-            const now = this.time.now;
-
-            // Only allow dash if BOTH taps were on the ground and not diving
-            const wasGrounded = this.lastPointerTapWasGrounded;
-            const wasNotDiving = this.lastPointerTapWasNotDiving;
-
-            if (
-                now - this.lastPointerTapTime < this.doubleTapThreshold &&
-                this.isPlayerGrounded() && wasGrounded &&
-                !this.isDiving && wasNotDiving &&
-                this.dashReady
-            ) {
-                this.doDash();
-                this.dashReady = false;
-                this.lastDashTime = now;
-                // Prevent jump on this tap
-                this.pointerJustDown = false;
-            }
-
-            // Store grounded/diving state for next tap
-            this.lastPointerTapTime = now;
-            this.lastPointerTapWasGrounded = this.isPlayerGrounded();
-            this.lastPointerTapWasNotDiving = !this.isDiving;
         });
         this.input.on('pointerup', () => {
             this.pointerIsDown = false;
