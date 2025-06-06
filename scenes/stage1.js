@@ -74,7 +74,10 @@ class Stage1 extends Phaser.Scene {
         this.jumpHoldTime = 0;       // How long jump key is held
         this.maxJumpHold = 1000;      // Max ms for extra loft
 
-
+        // Dash state initialization
+        this.dashReady = true;
+        this.dashCooldown = 1000; // ms cooldown between dashes
+        this.lastDashTime = 0;
     }
 
     initializeUI() {
@@ -233,6 +236,7 @@ class Stage1 extends Phaser.Scene {
     setupInput() {
         this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
         this.keyESC = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+        this.shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
 
         this.pointerIsDown = false;
         this.pointerJustDown = false;
@@ -539,6 +543,37 @@ class Stage1 extends Phaser.Scene {
 
         // At the END of update, reset pointerJustDown
         this.pointerJustDown = false;
+
+        // DASH LOGIC
+        const dashPressed = (this.shiftKey.isDown || this.pointerIsDown) && this.isPlayerGrounded() && !this.isJumping;
+
+        console.log("dashPressed:", dashPressed, "dashReady:", this.dashReady, "grounded:", this.isPlayerGrounded(), "jumping:", this.isJumping);
+
+        // Only allow dash if ready and not already dashing
+        if (dashPressed && this.dashReady) {
+            this.doDash();
+            this.dashReady = false;
+            this.lastDashTime = this.time.now;
+        }
+
+        // Reset dash after cooldown and after releasing input
+        if (!dashPressed && (this.time.now - this.lastDashTime > this.dashCooldown)) {
+            this.dashReady = true;
+        }
+    }
+
+    // Dash function
+    doDash() {
+        console.log("doDash() called"); // Add this at the very top
+        // Dash: burst of speed to the right
+        this.player.setVelocityX(600); // Dash speed
+        this.player.setTint(0x00ffff); // Visual feedback
+        this.time.delayedCall(200, () => {
+            if (this.isPlayerGrounded()) {
+                this.player.setVelocityX(0);
+            }
+            this.player.setTint(0x0088ff);
+        });
     }
 }
 
