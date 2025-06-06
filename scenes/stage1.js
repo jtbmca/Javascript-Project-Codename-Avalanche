@@ -2,7 +2,8 @@
 window.gameOptions = window.gameOptions || {
     platformStartSpeed: 350,
     platformSpeedIncrease: 15,
-    maxPlatformSpeed: 800,
+    maxPlatformSpeed: 800
+    ,
     playerGravity: 1200,     // Higher gravity for snappier jumps
     jumpForce: 400,         // Lower initial jump for taps
     maxJumpHold: 300,       // Longer hold time allowed
@@ -13,8 +14,8 @@ window.gameOptions = window.gameOptions || {
     pedestrianSpawnChance: 0.4, // 40% chance to spawn pedestrian
     timeLimit: 60,
     timeBonusPerScore: 0.5,
-    momentumLossPerCollision: 5, // 5% momentum loss per collision
-    momentumRecoveryRate: 0.5 // 0.5% recovery per frame
+    momentumLossPerCollision: 15, // 15% momentum loss per collision
+    momentumRecoveryRate: 0.1 // 0.1% recovery per frame (1%ps)
 };
 
 class Stage1 extends Phaser.Scene {
@@ -35,7 +36,7 @@ class Stage1 extends Phaser.Scene {
             level: 1,
             currentSpeed: window.gameOptions.platformStartSpeed,
             timeRemaining: window.gameOptions.timeLimit,
-            momentum: 100, // Player momentum percentage (affects speed)
+            momentum: 0, // Player momentum percentage (affects speed)
             gameOver: false,
             distanceTraveled: 0,
             collisionCooldown: 0
@@ -78,6 +79,16 @@ class Stage1 extends Phaser.Scene {
         this.dashReady = true;
         this.dashCooldown = 1000; // ms cooldown between dashes
         this.lastDashTime = 0;
+        this.isDashing = false; // NEW: Track if currently dashing
+        this.dashDuration = 200; // NEW: How long dash lasts
+        this.dashJumpWindow = 100; // NEW: Window at end of dash for dashJump (ms)
+
+        // DashJump properties (ADD THESE NEW LINES)
+        this.dashJumpForce = 600; // Stronger jump force for dashJump
+        this.dashJumpHorizontalBoost = 300; // Extra horizontal momentum
+        this.dashJumpMaxHeight = 450; // Higher max jump for dashJump
+        this.lastCanDashJump = false; // Track dashJump window state changes
+
 
         // --- DASH BUTTON SETUP (place at the very end of create) ---
         const dashBtn = document.getElementById('dashButton');
@@ -295,26 +306,40 @@ class Stage1 extends Phaser.Scene {
         this.endJumpHold();
     }
 
-    handleJumpOrDive() {
-        if (this.gameState.gameOver) return;
-        
-        if (this.isPlayerGrounded()) {
-            // Minimum jump height for taps
-            this.player.setVelocityY(window.gameOptions.jumpForce * -1);
-            this.isDiving = false;
-            this.isJumping = true;
-            this.jumpHoldTime = 0;
-            this.jumpStartTime = this.time.now; // Track when jump started
-            
-            // Visual feedback
-            this.player.setTint(0x00ff00);
-        } else if (!this.isDiving && !this.isPlayerGrounded()) {
-            // Dive logic unchanged
-            this.isDiving = true;
-            this.player.setVelocityY(900);
-            this.player.setTint(0xffff00);
+handleJumpOrDive() {
+    if (this.gameState.gameOver) return;
+    
+    console.log("=== JUMP INPUT DETECTED ===");
+    console.log("Player grounded:", this.isPlayerGrounded());
+    console.log("Can dash jump:", this.canDashJump());
+    console.log("isDashing:", this.isDashing);
+    
+    if (this.isPlayerGrounded()) {
+        // Check for dashJump first
+        if (this.canDashJump()) {
+            console.log("✅ Triggering DASH JUMP!");
+            this.dashJump();
+            return;
         }
+        
+        console.log("✅ Triggering REGULAR JUMP");
+        // Regular jump logic
+        this.player.setVelocityY(window.gameOptions.jumpForce * -1);
+        this.isDiving = false;
+        this.isJumping = true;
+        this.jumpHoldTime = 0;
+        this.jumpStartTime = this.time.now;
+        
+        // Visual feedback
+        this.player.setTint(0x00ff00);
+    } else if (!this.isDiving && !this.isPlayerGrounded()) {
+        console.log("✅ Triggering DIVE");
+        // Dive logic unchanged
+        this.isDiving = true;
+        this.player.setVelocityY(900);
+        this.player.setTint(0xffff00);
     }
+}
 
     endJumpHold() {
         this.isJumping = false;
@@ -351,7 +376,7 @@ class Stage1 extends Phaser.Scene {
                 this.gameState.momentum - window.gameOptions.momentumLossPerCollision);
             
             // Set collision cooldown to prevent multiple hits
-            this.gameState.collisionCooldown = 60; // 1 second at 60fps
+            this.gameState.collisionCooldown = 45; // ~.75 second at 60fps
             
             // Visual feedback
             this.cameras.main.shake(100, 0.01);
@@ -473,7 +498,7 @@ class Stage1 extends Phaser.Scene {
         }
 
         if (this.player.y > this.sys.game.config.height) {
-            this.triggerGameOver("Fell UNDER the street! HOW?!?!?!");
+            this.triggerGameOver("You Fell UNDER the street! HOW?!?!?!");
             return;
         }
 
@@ -575,36 +600,118 @@ class Stage1 extends Phaser.Scene {
         this.pointerJustDown = false;
 
         // DASH LOGIC
-        const dashPressed = this.shiftKey.isDown && this.isPlayerGrounded() && !this.isJumping;
+           const dashPressed = this.shiftKey.isDown && this.isPlayerGrounded() && !this.isJumping;
 
-        console.log("dashPressed:", dashPressed, "dashReady:", this.dashReady, "grounded:", this.isPlayerGrounded(), "jumping:", this.isJumping);
+    console.log("dashPressed:", dashPressed, "dashReady:", this.dashReady, "grounded:", this.isPlayerGrounded(), "jumping:", this.isJumping);
 
-        // Only allow dash if ready and not already dashing
-        if (dashPressed && this.dashReady) {
-            this.doDash();
-            this.dashReady = false;
-            this.lastDashTime = this.time.now;
-        }
-
-        // Reset dash after cooldown and after releasing input
-        if (!dashPressed && (this.time.now - this.lastDashTime > this.dashCooldown)) {
-            this.dashReady = true;
-        }
+    // Only allow dash if ready and not already dashing
+    if (dashPressed && this.dashReady) {
+        this.doDash();
+        this.dashReady = false;
+        this.lastDashTime = this.time.now;
     }
 
-    // Dash function
-    doDash() {
-        console.log("doDash() called"); // Add this at the very top
-        // Dash: burst of speed to the right
-        this.player.setVelocityX(600); // Dash speed
-        this.player.setTint(0x00ffff); // Visual feedback
-        this.time.delayedCall(200, () => {
-            if (this.isPlayerGrounded()) {
-                this.player.setVelocityX(0);
-            }
-            this.player.setTint(0x0088ff);
+    // Reset dash after cooldown and after releasing input
+    if (!dashPressed && (this.time.now - this.lastDashTime > this.dashCooldown)) {
+        this.dashReady = true;
+    }
+
+    // ADD THIS NEW SECTION HERE - Visual feedback for dashJump window
+    if (this.canDashJump()) {
+        this.player.setTint(0xffaa00); // Orange tint during dashJump window
+        console.log("DASH JUMP WINDOW ACTIVE!"); // Visual indicator in console
+    } else if (this.isDashing) {
+        // Keep dash visual during dash
+        this.player.setTint(0x00ffff); // Cyan during dash
+    } else if (this.isPlayerGrounded() && !this.isJumping && !this.isDiving) {
+        // Reset to normal color when grounded and not in special state
+        this.player.setTint(0x0088ff); // Normal blue
+    }
+}
+
+    
+    // Enhanced Dash function
+doDash() {
+    console.log("=== DASH STARTED ===");
+    console.log("Time:", this.time.now);
+    console.log("Player position:", this.player.x, this.player.y);
+    
+    // Set dash state
+    this.isDashing = true;
+    console.log("isDashing set to:", this.isDashing);
+    
+    // Dash: burst of speed to the right
+    this.player.setVelocityX(600);
+    this.player.setTint(0x00ffff);
+    
+    // End dash after duration
+    this.time.delayedCall(this.dashDuration, () => {
+        console.log("=== DASH ENDING ===");
+        console.log("Time:", this.time.now);
+        
+        if (this.isPlayerGrounded()) {
+            this.player.setVelocityX(0);
+        }
+        
+        // Keep dash state for dashJump window
+        this.time.delayedCall(this.dashJumpWindow, () => {
+            console.log("=== DASH JUMP WINDOW CLOSED ===");
+            console.log("Time:", this.time.now);
+            this.isDashing = false;
         });
+    });
+}
+// NEW: DashJump function - call this instead of regular jump when conditions are met
+dashJump() {
+    console.log("🚀 === DASH JUMP ACTIVATED! ===");
+    console.log("Jump force:", this.dashJumpForce);
+    console.log("Horizontal boost:", this.dashJumpHorizontalBoost);
+    console.log("Player velocity before:", this.player.body.velocity.x, this.player.body.velocity.y);
+    
+    // Powerful jump with extra height and forward momentum
+    this.player.setVelocityY(this.dashJumpForce * -1);
+    this.player.setVelocityX(this.dashJumpHorizontalBoost);
+    
+    console.log("Player velocity after:", this.player.body.velocity.x, this.player.body.velocity.y);
+    
+    this.isDiving = false;
+    this.isJumping = true;
+    this.jumpHoldTime = 0;
+    this.jumpStartTime = this.time.now;
+    
+    // Special visual feedback for dashJump
+    this.player.setTint(0xffff00); // Gold color for dashJump
+    
+    // Camera effect for dramatic feel
+    this.cameras.main.shake(100, 0.005);
+    
+    // Reset dash state
+    this.isDashing = false;
+    console.log("Dash state reset, isDashing:", this.isDashing);
+}
+
+// NEW: Check if player can perform dashJump
+canDashJump() {
+    const timeSinceDashStart = this.time.now - this.lastDashTime;
+    const dashEndTime = this.dashDuration;
+    const dashJumpWindowEnd = this.dashDuration + this.dashJumpWindow;
+    
+    const canDash = this.isDashing && 
+           timeSinceDashStart >= dashEndTime && 
+           timeSinceDashStart <= dashJumpWindowEnd &&
+           this.isPlayerGrounded();
+    
+    // Debug logging (only log when conditions change to avoid spam)
+    if (canDash && !this.lastCanDashJump) {
+        console.log("🟡 DASH JUMP WINDOW OPENED!");
+        console.log("Time since dash start:", timeSinceDashStart);
+        console.log("Dash end time:", dashEndTime);
+        console.log("Window end time:", dashJumpWindowEnd);
     }
+    
+    this.lastCanDashJump = canDash; // Track state change
+    return canDash;
+}
 }
 
 window.Stage1 = Stage1;
