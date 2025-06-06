@@ -129,6 +129,21 @@ canvas {
     color: #cccccc;
 }
 
+/* Dash Button */
+.dash-btn {
+    position: absolute;
+    bottom: 30px;
+    right: 30px;
+    padding: 18px 32px;
+    font-size: 1.5em;
+    border-radius: 12px;
+    background: #00ffff;
+    color: #222;
+    border: none;
+    opacity: 0.85;
+    z-index: 1000;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .ui-top {

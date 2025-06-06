@@ -81,10 +81,25 @@ class Stage1 extends Phaser.Scene {
 
         this.lastPointerTapTime = 0;
         this.doubleTapThreshold = 120; // ms window for double-tap
-
-        // Track last tap states for double-tap dash
         this.lastPointerTapWasGrounded = false;
         this.lastPointerTapWasNotDiving = true;
+
+        const dashBtn = document.getElementById('dashButton');
+        if (dashBtn) {
+            dashBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (this.dashReady && this.isPlayerGrounded()) {
+                    this.doDash();
+                    this.dashReady = false;
+                    this.lastDashTime = this.time.now;
+                }
+            });
+
+            // Hide dash button if any keyboard key is pressed
+            window.addEventListener('keydown', () => {
+                dashBtn.style.display = 'none';
+            });
+        }
     }
 
     initializeUI() {
@@ -576,7 +591,7 @@ class Stage1 extends Phaser.Scene {
         this.pointerJustDown = false;
 
         // DASH LOGIC
-        const dashPressed = (this.shiftKey.isDown || this.pointerIsDown) && this.isPlayerGrounded() && !this.isJumping;
+        const dashPressed = this.shiftKey.isDown && this.isPlayerGrounded() && !this.isJumping;
 
         console.log("dashPressed:", dashPressed, "dashReady:", this.dashReady, "grounded:", this.isPlayerGrounded(), "jumping:", this.isJumping);
 
