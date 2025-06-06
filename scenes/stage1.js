@@ -78,6 +78,13 @@ class Stage1 extends Phaser.Scene {
         this.dashReady = true;
         this.dashCooldown = 1000; // ms cooldown between dashes
         this.lastDashTime = 0;
+
+        this.lastPointerTapTime = 0;
+        this.doubleTapThreshold = 120; // ms window for double-tap
+
+        // Track last tap states for double-tap dash
+        this.lastPointerTapWasGrounded = false;
+        this.lastPointerTapWasNotDiving = true;
     }
 
     initializeUI() {
@@ -241,9 +248,33 @@ class Stage1 extends Phaser.Scene {
         this.pointerIsDown = false;
         this.pointerJustDown = false;
 
-        this.input.on('pointerdown', () => {
+        this.input.on('pointerdown', (pointer) => {
             this.pointerIsDown = true;
             this.pointerJustDown = true;
+
+            const now = this.time.now;
+
+            // Only allow dash if BOTH taps were on the ground and not diving
+            const wasGrounded = this.lastPointerTapWasGrounded;
+            const wasNotDiving = this.lastPointerTapWasNotDiving;
+
+            if (
+                now - this.lastPointerTapTime < this.doubleTapThreshold &&
+                this.isPlayerGrounded() && wasGrounded &&
+                !this.isDiving && wasNotDiving &&
+                this.dashReady
+            ) {
+                this.doDash();
+                this.dashReady = false;
+                this.lastDashTime = now;
+                // Prevent jump on this tap
+                this.pointerJustDown = false;
+            }
+
+            // Store grounded/diving state for next tap
+            this.lastPointerTapTime = now;
+            this.lastPointerTapWasGrounded = this.isPlayerGrounded();
+            this.lastPointerTapWasNotDiving = !this.isDiving;
         });
         this.input.on('pointerup', () => {
             this.pointerIsDown = false;

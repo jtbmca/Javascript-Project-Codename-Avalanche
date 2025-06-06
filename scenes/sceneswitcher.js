@@ -23,7 +23,6 @@ class SceneSwitcher extends Phaser.Scene {
             lineSpacing: 10
         }).setOrigin(0.5);
         
-        
         // Add additional help text
         this.add.text(centerX, centerY + 100, "Press ESC from any stage to return here", {
             font: "18px Arial",
@@ -37,15 +36,47 @@ class SceneSwitcher extends Phaser.Scene {
         // Add number keys
         this.key1 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ONE);
         this.key2 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.TWO);
-        this.key3 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.THREE); // <-- ADD THIS
+        this.key3 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.THREE);
 
         this.keyNumpad1 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.NUMPAD_ONE);
         this.keyNumpad2 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.NUMPAD_TWO);
-        this.keyNumpad3 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.NUMPAD_THREE); // <-- ADD THIS
+        this.keyNumpad3 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.NUMPAD_THREE);
 
         this.keyESC = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+
+        // --- MOBILE FRIENDLY BUTTONS ---
+        const buttonConfig = {
+            font: "32px Arial",
+            fill: "#222",
+            backgroundColor: "#fff",
+            padding: { x: 20, y: 10 }
+        };
+
+        // Stage 1 Button
+        this.add.text(centerX, centerY + 160, "Stage 1", buttonConfig)
+            .setOrigin(0.5)
+            .setInteractive()
+            .on('pointerdown', () => {
+                this.scene.start("Stage1");
+            });
+
+        // Dungeon 1 Button
+        this.add.text(centerX, centerY + 210, "Dungeon 1", buttonConfig)
+            .setOrigin(0.5)
+            .setInteractive()
+            .on('pointerdown', () => {
+                this.scene.start("Dungeon1");
+            });
+
+        // Stage 2 Button
+        this.add.text(centerX, centerY + 260, "Stage 2", buttonConfig)
+            .setOrigin(0.5)
+            .setInteractive()
+            .on('pointerdown', () => {
+                this.scene.start("Stage2");
+            });
     }
-    
+
     update() {
         // Check for key presses in update loop for more reliable detection
         if (Phaser.Input.Keyboard.JustDown(this.key1) || Phaser.Input.Keyboard.JustDown(this.keyNumpad1)) {
