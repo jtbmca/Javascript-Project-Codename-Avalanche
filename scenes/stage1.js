@@ -3,8 +3,10 @@ window.gameOptions = window.gameOptions || {
     platformStartSpeed: 350,
     platformSpeedIncrease: 15,
     maxPlatformSpeed: 800,
-    playerGravity: 800,
-    jumpForce: 400,
+    playerGravity: 1200,     // Higher gravity for snappier jumps
+    jumpForce: 400,         // Lower initial jump for taps
+    maxJumpHold: 300,       // Longer hold time allowed
+    jumpHoldForce: 40,      // Much stronger hold force
     playerStartPosition: 200,
     jumps: 1,
     difficultyIncreaseInterval: 10,
@@ -70,7 +72,9 @@ class Stage1 extends Phaser.Scene {
         }        this.isDiving = false;
         this.isJumping = false;      // Track if jump is in progress
         this.jumpHoldTime = 0;       // How long jump key is held
-        this.maxJumpHold = 500;      // Max ms for extra loft
+        this.maxJumpHold = 1000;      // Max ms for extra loft
+
+
     }
 
     initializeUI() {
@@ -227,70 +231,51 @@ class Stage1 extends Phaser.Scene {
     }
 
     setupInput() {
-        this.keyESC = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
         this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+        this.keyESC = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
 
-        // Listen for pointerdown and keydown for jump/dive/dash
-        this.input.on("pointerdown", this.handlePointerDown, this);
-        this.input.on("pointerup", this.handlePointerUp, this);
+        this.pointerIsDown = false;
+        this.pointerJustDown = false;
+
+        this.input.on('pointerdown', () => {
+            this.pointerIsDown = true;
+            this.pointerJustDown = true;
+        });
+        this.input.on('pointerup', () => {
+            this.pointerIsDown = false;
+        });
+    }
+
+    handlePointerDown() {
+        if (this.gameState.gameOver) return;
         
-        // Make spacebar behave like pointer events
-        this.input.keyboard.on('keydown-SPACE', () => this.handlePointerDown(), this);
-        this.input.keyboard.on('keyup-SPACE', () => this.handlePointerUp(), this);
-    }    handleSpaceDown(event) {
         if (this.isPlayerGrounded()) {
             this.handleJumpOrDive();
-        } else {
+        } else if (!this.isDiving) {
             this.handleJumpOrDive();
         }
     }
 
-    handlePointerDown(pointer, event) {
-        if (this.isPlayerGrounded()) {
-            this.handleJumpOrDive();
-        } else {
-            this.handleJumpOrDive();
-        }
-    }
-
-    handlePointerUp(pointer, event) {
-        // If a jump is queued and the timer is still running, jump immediately
-        if (this.jumpQueued) {
-
-            this.handleJumpOrDive();
-            this.jumpQueued = false;
-        }
+    handlePointerUp() {
+        if (this.gameState.gameOver) return;
+        this.endJumpHold();
     }
 
     handleJumpOrDive() {
         if (this.gameState.gameOver) return;
         
-        const canJump = this.isPlayerGrounded() || this.playerJumps < window.gameOptions.jumps;
-        
-        if (canJump) {
-            // Reset jump if grounded
-            if (this.isPlayerGrounded()) {
-                this.playerJumps = 0;
-            }
-            
-            // Start jump
-            let jumpForce = window.gameOptions.jumpForce;
-            this.player.setVelocityY(jumpForce * -1);
-            this.playerJumps++;
+        if (this.isPlayerGrounded()) {
+            // Minimum jump height for taps
+            this.player.setVelocityY(window.gameOptions.jumpForce * -1);
             this.isDiving = false;
             this.isJumping = true;
             this.jumpHoldTime = 0;
-            this.jumpTimer = this.time.now;
+            this.jumpStartTime = this.time.now; // Track when jump started
             
-            // Visual feedback for jump
+            // Visual feedback
             this.player.setTint(0x00ff00);
-            this.time.delayedCall(200, () => {
-                if (!this.isDiving) {
-                    this.player.setTint(0x0088ff);
-                }
-            });
         } else if (!this.isDiving && !this.isPlayerGrounded()) {
-            // Dive if in air and not already diving
+            // Dive logic unchanged
             this.isDiving = true;
             this.player.setVelocityY(900);
             this.player.setTint(0xffff00);
@@ -434,9 +419,27 @@ class Stage1 extends Phaser.Scene {
             return;
         }
 
+        // Unify input for jump
+        const jumpPressed = Phaser.Input.Keyboard.JustDown(this.spaceKey) || this.pointerJustDown;
+        const jumpHeld = this.spaceKey.isDown || this.pointerIsDown;
+
+        if (jumpPressed) {
+            this.handleJumpOrDive();
+        }
+
+        if (jumpHeld && this.isJumping && this.time.now - this.jumpStartTime < window.gameOptions.maxJumpHold) {
+            this.player.setVelocityY(window.gameOptions.jumpForce * -1);
+        }
+
+        if (!jumpHeld && this.isJumping && !this.isPlayerGrounded()) {
+            this.isJumping = false;
+            if (this.player.body.velocity.y < 0) {
+                this.player.setVelocityY(this.player.body.velocity.y * 0.3);
+            }
+        }
 
         if (this.player.y > this.sys.game.config.height) {
-            this.triggerGameOver("Fell off the street! HOW?!?!?!");
+            this.triggerGameOver("Fell UNDER the street! HOW?!?!?!");
             return;
         }
 
@@ -498,31 +501,44 @@ class Stage1 extends Phaser.Scene {
         if (this.jumpTimer > 0) {
             if (time - this.jumpTimer > this.jumpBufferDuration) {
                 this.jumpTimer = 0;
+                this.isJumping = false; // Ensure jumping state is cleared if buffer expires
             }
         }
 
         // Variable jump height logic
         if (this.isJumping && !this.isPlayerGrounded()) {
-            if (this.jumpHoldTime < this.maxJumpHold) {
-                let jumpForceMultiplier = 1 - (this.jumpHoldTime / this.maxJumpHold);
-                this.player.setVelocityY(this.player.body.velocity.y - (15 * jumpForceMultiplier));
-                this.jumpHoldTime += delta;
+            const holdDuration = this.time.now - this.jumpStartTime;
+            if ((this.spaceKey.isDown || this.pointerIsDown) &&
+                holdDuration < window.gameOptions.maxJumpHold) {
+                this.player.setVelocityY(this.player.body.velocity.y - window.gameOptions.jumpHoldForce * (delta / 16.67));
             } else {
                 this.isJumping = false;
+                if (this.player.body.velocity.y < 0) {
+                    this.player.setVelocityY(this.player.body.velocity.y * 0.3);
+                }
             }
         }
 
-        // Reset jump state when landing
-        if (this.isPlayerGrounded()) {
+        // Only reset jump state when landing (transition from air to ground)
+        if (this.isPlayerGrounded() && !this.wasGrounded) {
             if (this.isDiving) {
                 this.isDiving = false;
                 this.player.setTint(0x0088ff);
-            }            this.isJumping = false;
-            this.playerJumps = 0;  // Reset jump count when landing
+            }
+            this.isJumping = false;
+            this.jumpTimer = 0;
+            this.jumpHoldTime = 0;
+            this.playerJumps = 0;
         }
+
+        // Track grounded state for next frame
+        this.wasGrounded = this.isPlayerGrounded();
 
         // Update DOM UI
         this.updateUI();
+
+        // At the END of update, reset pointerJustDown
+        this.pointerJustDown = false;
     }
 }
 
