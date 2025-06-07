@@ -351,18 +351,11 @@ class Stage1 extends Phaser.Scene {
         this.pointerIsDown = false;
         this.pointerJustDown = false;
 
-        // These listeners handle general canvas clicks/taps for jumping
-        this.input.on('pointerdown', (pointer) => {
-            // This condition is crucial:
-            // It ensures that if the click/tap was on an HTML button (like your JUMP or DASH button),
-            // this general canvas listener doesn't also fire.
-            // If the click/tap was on the canvas itself (not an HTML button), then it proceeds.
-            if (pointer.target !== this.sys.game.canvas) {
-                return;
-            }
-            this.pointerIsDown = true;
-            this.pointerJustDown = true;
-        });
+this.input.on('pointerdown', (pointer) => {
+    // Remove the target check completely
+    this.pointerIsDown = true;
+    this.pointerJustDown = true;
+});
 
         this.input.on('pointerup', (pointer) => {
             // Similar check for pointerup
