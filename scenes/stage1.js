@@ -326,13 +326,22 @@ class Stage1 extends Phaser.Scene {
         this.pedestrian3.setTint(0x6600ff); 
         this.pedestrian3.setScale(1.3); 
 
-        this.pedestrians = [this.pedestrian1, this.pedestrian2, this.pedestrian3];
+        this.pedestrian4 = this.physics.add.sprite(
+            this.sys.game.config.width + 700,
+            this.originY+20,
+            "pedestrian"
+        );
+        this.pedestrian4.setImmovable(true);
+        this.pedestrian4.setTint(0xfcff33); 
+        this.pedestrian4.setScale(0.5); 
+
+        this.pedestrians = [this.pedestrian1, this.pedestrian2, this.pedestrian3, this.pedestrian4];
         this.updatePedestrianSpeeds();
     }
 
     updatePedestrianSpeeds() { // User's original logic
         const baseSpeed = this.getAdjustedSpeed();
-        const speedMultipliers = [1.2, 0.9, 0.7]; 
+        const speedMultipliers = [1.2, 0.9, 0.7, 1.6]; // Different speeds for each pedestrian
         
         this.pedestrians.forEach((pedestrian, index) => {
             pedestrian.setVelocityX(baseSpeed * speedMultipliers[index] * -1);
@@ -592,10 +601,10 @@ this.input.on('pointerdown', (pointer) => {
         // Manage pedestrians (User's original)
         this.pedestrians.forEach((pedestrian, index) => {
             if (pedestrian.x < -pedestrian.displayWidth / 2) {
-                const basePositions = [100, 300, 500];
+                const basePositions = [100, 300, 500, 700]; // Base positions for pedestrians
                 const randomOffset = Phaser.Math.Between(-50, 200);
                 pedestrian.x = this.sys.game.config.width + basePositions[index] + randomOffset;
-                pedestrian.y = this.originY;
+                // pedestrian.y = this.originY;
             }
         });
 
