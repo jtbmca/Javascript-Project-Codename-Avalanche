@@ -2,89 +2,89 @@
 window.gameOptions = window.gameOptions || {
     platformStartSpeed: 350,
     platformSpeedIncrease: 15,
-    maxPlatformSpeed: 800
-    ,
-    playerGravity: 1200,     // Higher gravity for snappier jumps
-    jumpForce: 400,         // Lower initial jump for taps
-    maxJumpHold: 300,       // Longer hold time allowed
-    jumpHoldForce: 40,      // Much stronger hold force
+    maxPlatformSpeed: 800,
+    playerGravity: 1200,
+    jumpForce: 400,
+    maxJumpHold: 300,
+    jumpHoldForce: 40,
     playerStartPosition: 200,
     jumps: 1,
     difficultyIncreaseInterval: 10,
-    pedestrianSpawnChance: 0.4, // 40% chance to spawn pedestrian
-    timeLimit: 60,
-    timeBonusPerScore: 0.5,
-    momentumLossPerCollision: 15, // 15% momentum loss per collision
-    momentumRecoveryRate: 0.1 // 0.1% recovery per frame (1%ps)
+    pedestrianSpawnChance: 0.4,
+    // Updated for missile chase mechanics
+    stageDuration: 60,          // 60 seconds to complete stage
+    stageTargetDistance: 15000, // Distance needed to win
+    missileSpeed: 1.67,         // Missile moves 1.67% per second (100% in 60s)
+    momentumLossPerCollision: 15,
+    momentumRecoveryRate: 0.1
 };
 
 class Stage1 extends Phaser.Scene {
     constructor() {
         super("Stage1");
-        this.hideOnScreenButtonsHandler = null; // For managing the global keydown listener
+        this.hideOnScreenButtonsHandler = null;
     }
 
     preload() {
-        this.load.image("platform", "./assets/sprites/platformb.png"); // placeholder Street platform sprite
-        this.load.image("player", "./assets/sprites/player.png"); //placeholder for player sprite
-        this.load.image("pedestrian", "./assets/sprites/player.png"); // Using player sprite as pedestrian placeholder
+        this.load.image("platform", "./assets/sprites/platformb.png");
+        this.load.image("player", "./assets/sprites/player.png");
+        this.load.image("pedestrian", "./assets/sprites/player.png");
+        this.load.image("missile", "./assets/sprites/player.png"); // Using player.png as missile placeholder
     }
 
     create() {
-        // Initialize game state
+        // Initialize game state with missile chase mechanics
         this.gameState = {
             score: 0,
             level: 1,
             currentSpeed: window.gameOptions.platformStartSpeed,
-            timeRemaining: window.gameOptions.timeLimit,
-            momentum: 0, // Player momentum percentage (affects speed) - User's original value
+            // Missile chase specific state
+            stageDistance: 0,
+            stageProgress: 0,           // Percentage (0-100) of stage completed
+            missilePosition: 0,         // Missile position across screen (0-100%)
+            momentum: 100,              // Start at full momentum
             gameOver: false,
+            gameComplete: false,
             distanceTraveled: 0,
             collisionCooldown: 0,
-            lastScoreSegment: 0 // Track last score segment for distance scoring
+            lastScoreSegment: 0,
+            pedestriansAvoided: 0,
+            collisions: 0,
+            completionReason: ""
         };
 
         // Initialize DOM UI
-        this.initializeUI(); // Call this first to get domElements
+        this.initializeUI();
         
         // Make on-screen buttons visible at scene start/restart
         if (this.domElements.jumpButton) this.domElements.jumpButton.style.display = 'block';
         if (this.domElements.dashButton) this.domElements.dashButton.style.display = 'block';
 
-        // Platform setup (continuous street)
+        // Setup game elements
         this.initializePlatforms();
-        
-        // Player setup
         this.setupPlayer();
-        
-        // Pedestrian setup
+        this.setupMissile(); // New missile setup
         this.setupPedestrians();
-        
-        // Input setup
-        this.setupInput(); // Original input setup
-        
-        // Physics collisions
+        this.setupInput();
         this.setupPhysics();
         
-        // Game timer
-        this.setupGameTimer();
-        
         // Show instructions and hide after 5 seconds
-        const instructions = this.domElements.instructions; // Use stored reference
+        const instructions = this.domElements.instructions;
         if (instructions) {
             instructions.style.display = 'block';
             this.time.delayedCall(5000, () => {
                 if (instructions) instructions.style.display = 'none';
             });
-        }        
+        }
+
+        // Initialize movement state
         this.isDiving = false;
-        this.isJumping = false;      // Track if jump is in progress
-        this.jumpHoldTime = 0;       // How long jump key is held
-        // this.maxJumpHold = 1000; // This is in gameOptions now as maxJumpHold
+        this.isJumping = false;
+        this.jumpHoldTime = 0;
 
         // Dash state initialization
         this.dashReady = true;
-        this.dashCooldown = 1000; // ms cooldown between dashes
+        this.dashCooldown = 1000;
         this.lastDashTime = 0;
         this.isDashing = false; 
         this.dashDuration = 200; 
@@ -96,40 +96,38 @@ class Stage1 extends Phaser.Scene {
         this.dashJumpMaxHeight = 450; 
         this.lastCanDashJump = false; 
 
-        const scene = this; // Capture the Phaser scene context
+        const scene = this;
 
-        // --- JUMP BUTTON SETUP (NEW) ---
+        // Existing button setup code (unchanged)
         if (this.domElements.jumpButton) {
             this.domElements.jumpButton.addEventListener('touchstart', function(e) {
                 e.preventDefault();
-                if (scene.gameState.gameOver) return;
+                if (scene.gameState.gameOver || scene.gameState.gameComplete) return;
                 scene.pointerIsDown = true;
                 scene.pointerJustDown = true;
             });
             this.domElements.jumpButton.addEventListener('mousedown', function(e) {
                 e.preventDefault();
-                if (scene.gameState.gameOver) return;
+                if (scene.gameState.gameOver || scene.gameState.gameComplete) return;
                 scene.pointerIsDown = true;
                 scene.pointerJustDown = true;
             });
             this.domElements.jumpButton.addEventListener('touchend', function(e) {
                 e.preventDefault();
-                if (scene.gameState.gameOver) return;
+                if (scene.gameState.gameOver || scene.gameState.gameComplete) return;
                 scene.pointerIsDown = false;
             });
             this.domElements.jumpButton.addEventListener('mouseup', function(e) {
                 e.preventDefault();
-                if (scene.gameState.gameOver) return;
+                if (scene.gameState.gameOver || scene.gameState.gameComplete) return;
                 scene.pointerIsDown = false;
             });
         }
 
-        // --- DASH BUTTON SETUP (Original, ensure it uses domElements and checks gameOver) ---
         if (this.domElements.dashButton) {
             this.domElements.dashButton.addEventListener('touchstart', function(e) {
                 e.preventDefault();
-                // console.log("DASH BUTTON TOUCH"); // Original console log
-                if (scene.gameState.gameOver) return; // Added game over check
+                if (scene.gameState.gameOver || scene.gameState.gameComplete) return;
                 if (scene.dashReady && scene.isPlayerGrounded()) {
                     scene.doDash();
                     scene.dashReady = false;
@@ -139,8 +137,7 @@ class Stage1 extends Phaser.Scene {
 
             this.domElements.dashButton.addEventListener('mousedown', function(e) {
                 e.preventDefault();
-                // console.log("DASH BUTTON CLICKED"); // Original console log
-                if (scene.gameState.gameOver) return; // Added game over check
+                if (scene.gameState.gameOver || scene.gameState.gameComplete) return;
                 if (scene.dashReady && scene.isPlayerGrounded()) {
                     scene.doDash();
                     scene.dashReady = false;
@@ -149,8 +146,7 @@ class Stage1 extends Phaser.Scene {
             });
         }
         
-        // MODIFIED global keydown listener to be scene-managed for hiding on-screen buttons
-        if (this.hideOnScreenButtonsHandler) { // Remove previous if scene restarts
+        if (this.hideOnScreenButtonsHandler) {
             window.removeEventListener('keydown', this.hideOnScreenButtonsHandler);
         }
         this.hideOnScreenButtonsHandler = () => {
@@ -159,18 +155,16 @@ class Stage1 extends Phaser.Scene {
         };
         window.addEventListener('keydown', this.hideOnScreenButtonsHandler);
 
-
-        // --- GAME OVER SCREEN MOBILE BUTTONS (NEW) ---
         if (this.domElements.gameOverRestartButtonMobile) {
             this.domElements.gameOverRestartButtonMobile.addEventListener('click', () => {
-                if (scene.gameState.gameOver) {
+                if (scene.gameState.gameOver || scene.gameState.gameComplete) {
                     if(scene.domElements.gameOverScreen) scene.domElements.gameOverScreen.style.display = 'none';
                     scene.scene.restart();
                 }
             });
-             this.domElements.gameOverRestartButtonMobile.addEventListener('touchstart', (e) => { // Also listen for touchstart
+             this.domElements.gameOverRestartButtonMobile.addEventListener('touchstart', (e) => {
                 e.preventDefault();
-                if (scene.gameState.gameOver) {
+                if (scene.gameState.gameOver || scene.gameState.gameComplete) {
                     if(scene.domElements.gameOverScreen) scene.domElements.gameOverScreen.style.display = 'none';
                     scene.scene.restart();
                 }
@@ -178,15 +172,15 @@ class Stage1 extends Phaser.Scene {
         }
         if (this.domElements.gameOverMenuButtonMobile) {
             this.domElements.gameOverMenuButtonMobile.addEventListener('click', () => {
-                if (scene.gameState.gameOver) {
+                if (scene.gameState.gameOver || scene.gameState.gameComplete) {
                     if(scene.domElements.gameOverScreen) scene.domElements.gameOverScreen.style.display = 'none';
                     if (scene.domElements.instructions) scene.domElements.instructions.style.display = 'none';
                     scene.scene.start("SceneSwitcher");
                 }
             });
-            this.domElements.gameOverMenuButtonMobile.addEventListener('touchstart', (e) => { // Also listen for touchstart
+            this.domElements.gameOverMenuButtonMobile.addEventListener('touchstart', (e) => {
                 e.preventDefault();
-                if (scene.gameState.gameOver) {
+                if (scene.gameState.gameOver || scene.gameState.gameComplete) {
                     if(scene.domElements.gameOverScreen) scene.domElements.gameOverScreen.style.display = 'none';
                     if (scene.domElements.instructions) scene.domElements.instructions.style.display = 'none';
                     scene.scene.start("SceneSwitcher");
@@ -195,8 +189,16 @@ class Stage1 extends Phaser.Scene {
         }
     }
 
+    // New missile setup
+    setupMissile() {
+        this.missile = this.add.sprite(0, this.sys.game.config.height * 0.15, "missile");
+        this.missile.setScale(0.3);
+        this.missile.setTint(0xff4444); // Red tint to distinguish from player
+        this.missile.setDepth(10); // Ensure it's visible above background
+    }
+
+    // Updated UI to show missile chase progress
     initializeUI() {
-        // Get DOM elements
         this.domElements = {
             scoreDisplay: document.getElementById('scoreDisplay'),
             levelDisplay: document.getElementById('levelDisplay'),
@@ -207,14 +209,12 @@ class Stage1 extends Phaser.Scene {
             gameOverReason: document.getElementById('gameOverReason'),
             gameOverScore: document.getElementById('gameOverScore'),
             instructions: document.getElementById('instructionsDisplay'),
-            jumpButton: document.getElementById('jumpButton'), // New
-            dashButton: document.getElementById('dashButton'), // Referenced here
-            gameOverRestartButtonMobile: document.getElementById('gameOverRestartButtonMobile'), // New
-            gameOverMenuButtonMobile: document.getElementById('gameOverMenuButtonMobile'), // New
-            // gameOverKeyboardInstructions: document.getElementById('gameOverKeyboardInstructions') // Already in HTML, not directly manipulated in JS by original code
+            jumpButton: document.getElementById('jumpButton'),
+            dashButton: document.getElementById('dashButton'),
+            gameOverRestartButtonMobile: document.getElementById('gameOverRestartButtonMobile'),
+            gameOverMenuButtonMobile: document.getElementById('gameOverMenuButtonMobile'),
         };
 
-        // Update initial UI
         this.updateUI();
     }
 
@@ -222,9 +222,9 @@ class Stage1 extends Phaser.Scene {
         if (!this.domElements.scoreDisplay) return;
 
         this.domElements.scoreDisplay.textContent = `Score: ${this.gameState.score}`;
-        this.domElements.levelDisplay.textContent = `Level: ${this.gameState.level}`;
-        this.domElements.speedDisplay.textContent = `Speed: ${Math.round(this.gameState.currentSpeed)}`;
-        this.domElements.timeDisplay.textContent = `Time: ${this.gameState.timeRemaining}s`;
+        this.domElements.levelDisplay.textContent = `Progress: ${Math.round(this.gameState.stageProgress)}%`;
+        this.domElements.speedDisplay.textContent = `Speed: ${Math.round(this.getAdjustedSpeed())}`;
+        this.domElements.timeDisplay.textContent = `Missile: ${Math.round(this.gameState.missilePosition)}%`;
         
         const momentum = Math.round(this.gameState.momentum);
         this.domElements.momentumDisplay.textContent = `Momentum: ${momentum}%`;
@@ -240,7 +240,96 @@ class Stage1 extends Phaser.Scene {
         }
     }
 
-    initializePlatforms() { // User's original logic
+    // Updated to use momentum-based speed calculation
+    getAdjustedSpeed() {
+        return this.gameState.currentSpeed * (this.gameState.momentum / 100);
+    }
+
+    // Updated collision handling
+    hitPedestrian(player, pedestrian) {
+        if (this.gameState.collisionCooldown <= 0) {
+            this.gameState.momentum = Math.max(10, 
+                this.gameState.momentum - window.gameOptions.momentumLossPerCollision);
+            this.gameState.collisions++;
+            
+            this.gameState.collisionCooldown = 45; 
+            
+            this.cameras.main.shake(100, 0.01);
+            this.player.setTint(0xff4444);
+            
+            this.time.delayedCall(200, () => {
+                this.player.setTint(0x0088ff);
+            });
+            
+            this.updateAllSpeeds();
+        }
+    }
+
+    // New missile chase update logic
+    updateMissileChase(delta) {
+        // Update missile position (moves at constant rate)
+        this.gameState.missilePosition += (window.gameOptions.missileSpeed * delta) / 1000;
+        this.gameState.missilePosition = Math.min(100, this.gameState.missilePosition);
+        
+        // Update missile sprite position
+        this.missile.x = (this.gameState.missilePosition / 100) * this.sys.game.config.width;
+        
+        // Update player progress based on momentum-adjusted speed
+        const speedRatio = this.getAdjustedSpeed() / window.gameOptions.platformStartSpeed;
+        const baseProgressRate = window.gameOptions.missileSpeed; // Same base rate as missile
+        const adjustedProgressRate = baseProgressRate * speedRatio;
+        
+        this.gameState.stageProgress += (adjustedProgressRate * delta) / 1000;
+        this.gameState.stageProgress = Math.min(100, this.gameState.stageProgress);
+        
+        // Check win/lose conditions
+        this.checkStageCompletion();
+    }
+
+    // New stage completion logic
+    checkStageCompletion() {
+        // Player wins if they reach 100% progress before missile reaches 100%
+        if (this.gameState.stageProgress >= 100 && !this.gameState.gameComplete && !this.gameState.gameOver) {
+            this.completeStage("You caught the missile!");
+        }
+        // Player loses if missile reaches 100% before they complete stage
+        else if (this.gameState.missilePosition >= 100 && !this.gameState.gameComplete && !this.gameState.gameOver) {
+            this.triggerGameOver("The missile got away!");
+        }
+    }
+
+    // New stage completion handler
+    completeStage(reason) {
+        this.gameState.gameComplete = true;
+        this.gameState.completionReason = reason;
+        
+        // Calculate completion bonus
+        const timeBonus = Math.round((100 - this.gameState.missilePosition) * 10);
+        const momentumBonus = Math.round(this.gameState.momentum * 5);
+        const avoidanceBonus = this.gameState.pedestriansAvoided * 10;
+        
+        this.gameState.score += timeBonus + momentumBonus + avoidanceBonus;
+        
+        this.physics.pause();
+        
+        if (this.domElements.gameOverScreen) {
+            this.domElements.gameOverReason.textContent = `${reason} Stage Complete!`;
+            this.domElements.gameOverScore.textContent = `Final Score: ${this.gameState.score}`;
+            this.domElements.gameOverScreen.style.display = 'block';
+        }
+        
+        this.cameras.main.flash(500, 0, 255, 0);
+        this.player.setTint(0x00ff00);
+    }
+
+    // Updated scoring for pedestrian avoidance
+    updateScore(points = 10) {
+        this.gameState.score += points;
+        this.gameState.pedestriansAvoided++;
+    }
+
+    // Existing methods remain unchanged (keeping all movement, input, platform, pedestrian logic)
+    initializePlatforms() {
         this.platformGroup = this.add.group({
             removeCallback: function(platform) {
                 platform.scene.platformPool.add(platform);
@@ -256,11 +345,11 @@ class Stage1 extends Phaser.Scene {
         this.createContinuousStreet();
         
         let platformY = this.sys.game.config.height * 0.8;
-        this.originY = platformY - 50; // User's original calculation
+        this.originY = platformY - 50;
     }
 
-    createContinuousStreet() { // User's original logic
-        const platformWidth = this.sys.game.config.width; // User's original
+    createContinuousStreet() {
+        const platformWidth = this.sys.game.config.width;
         const numPlatforms = 5; 
         
         for (let i = 0; i < numPlatforms; i++) {
@@ -268,7 +357,7 @@ class Stage1 extends Phaser.Scene {
         }
     }
 
-    addStreetSegment(xPosition) { // User's original logic
+    addStreetSegment(xPosition) {
         let platform;
         if (this.platformPool.getLength()) {
             platform = this.platformPool.getFirst();
@@ -285,14 +374,14 @@ class Stage1 extends Phaser.Scene {
         platform.setVelocityX(this.getAdjustedSpeed() * -1);
     }
 
-    setupPlayer() { // User's original logic
+    setupPlayer() {
         this.player = this.physics.add.sprite(
             window.gameOptions.playerStartPosition,
             this.originY,
             "player"
         );
         this.player.setGravityY(window.gameOptions.playerGravity);
-        this.player.setCollideWorldBounds(true, false, false, false, true); // User's original
+        this.player.setCollideWorldBounds(true, false, false, false, true);
         this.playerJumps = 0;
         this.jumpTimer = 0;  
         this.jumpBufferDuration = 150; 
@@ -300,7 +389,7 @@ class Stage1 extends Phaser.Scene {
         this.player.setTint(0x0088ff); 
     }
 
-    setupPedestrians() { // User's original logic
+    setupPedestrians() {
         this.pedestrian1 = this.physics.add.sprite(
             this.sys.game.config.width + 100,
             this.originY,
@@ -339,17 +428,23 @@ class Stage1 extends Phaser.Scene {
         this.updatePedestrianSpeeds();
     }
 
-    updatePedestrianSpeeds() { // User's original logic
+    updatePedestrianSpeeds() {
         const baseSpeed = this.getAdjustedSpeed();
-        const speedMultipliers = [1.2, 0.9, 0.7, 1.6]; // Different speeds for each pedestrian
+        const speedMultipliers = [1.2, 0.9, 0.7, 1.6];
         
         this.pedestrians.forEach((pedestrian, index) => {
             pedestrian.setVelocityX(baseSpeed * speedMultipliers[index] * -1);
         });
     }
 
-    getAdjustedSpeed() { // User's original logic
-        return this.gameState.currentSpeed * (this.gameState.momentum / 100);
+    updateAllSpeeds() {
+        const adjustedSpeed = this.getAdjustedSpeed();
+        
+        this.platformGroup.getChildren().forEach(platform => {
+            platform.setVelocityX(adjustedSpeed * -1);
+        });
+        
+        this.updatePedestrianSpeeds();
     }
 
     setupInput() {
@@ -360,14 +455,12 @@ class Stage1 extends Phaser.Scene {
         this.pointerIsDown = false;
         this.pointerJustDown = false;
 
-this.input.on('pointerdown', (pointer) => {
-    // Remove the target check completely
-    this.pointerIsDown = true;
-    this.pointerJustDown = true;
-});
+        this.input.on('pointerdown', (pointer) => {
+            this.pointerIsDown = true;
+            this.pointerJustDown = true;
+        });
 
         this.input.on('pointerup', (pointer) => {
-            // Similar check for pointerup
             if (pointer.target !== this.sys.game.canvas) {
                 return;
             }
@@ -375,12 +468,8 @@ this.input.on('pointerdown', (pointer) => {
         });
     }
 
-    // handlePointerDown and handlePointerUp are part of original logic, triggered by canvas pointer events
-    // The new Jump button will set the same flags (pointerIsDown, pointerJustDown)
-    // so the existing logic in update() that uses these flags will work.
-
-    handleJumpOrDive() { // User's original logic
-        if (this.gameState.gameOver) return;
+    handleJumpOrDive() {
+        if (this.gameState.gameOver || this.gameState.gameComplete) return;
         
         console.log("=== JUMP INPUT DETECTED ===");
         console.log("Player grounded:", this.isPlayerGrounded());
@@ -410,16 +499,15 @@ this.input.on('pointerdown', (pointer) => {
         }
     }
 
-    endJumpHold() { // User's original logic
+    endJumpHold() {
         this.isJumping = false;
-        // this.jumpQueued = false; // User had this commented out
     }
 
-    isPlayerGrounded() { // User's original logic
+    isPlayerGrounded() {
         return this.player.body.touching.down || this.player.body.blocked.down;
     }
 
-    setupPhysics() { // User's original logic
+    setupPhysics() {
         this.physics.add.collider(this.player, this.platformGroup);
         
         this.pedestrians.forEach(pedestrian => {
@@ -427,94 +515,7 @@ this.input.on('pointerdown', (pointer) => {
         });
     }
 
-    setupGameTimer() { // User's original logic
-        this.gameTimer = this.time.addEvent({
-            delay: 1000,
-            callback: this.updateTimer,
-            callbackScope: this,
-            loop: true
-        });
-    }
-
-    hitPedestrian(player, pedestrian) { // User's original logic
-        if (this.gameState.collisionCooldown <= 0) {
-            this.gameState.momentum = Math.max(10, 
-                this.gameState.momentum - window.gameOptions.momentumLossPerCollision);
-            
-            this.gameState.collisionCooldown = 45; 
-            
-            this.cameras.main.shake(100, 0.01);
-            this.player.setTint(0xff4444);
-            
-            this.time.delayedCall(200, () => {
-                this.player.setTint(0x0088ff);
-            });
-            
-            this.updateAllSpeeds();
-        }
-    }
-
-    updateAllSpeeds() { // User's original logic
-        const adjustedSpeed = this.getAdjustedSpeed();
-        
-        this.platformGroup.getChildren().forEach(platform => {
-            platform.setVelocityX(adjustedSpeed * -1);
-        });
-        
-        this.updatePedestrianSpeeds();
-    }
-
-    updateTimer() { // User's original logic
-        if (this.gameState.gameOver) return;
-        
-        this.gameState.timeRemaining--;
-        
-        if (this.gameState.timeRemaining <= 0) {
-            this.triggerGameOver("Time's up!");
-        }
-        // this.updateUI(); // updateUI is called in the main update loop
-    }
-
-    updateScore(points = 10) { // User's original logic
-        this.gameState.score += points;
-        this.gameState.timeRemaining += window.gameOptions.timeBonusPerScore;
-        
-        if (this.gameState.score > 0 && 
-            this.gameState.score % window.gameOptions.difficultyIncreaseInterval === 0) {
-            this.increaseDifficulty();
-        }
-        // this.updateUI(); // updateUI is called in the main update loop
-    }
-
-    updateScoring(delta) { // User's original logic
-        const pixelsPerSecond = this.getAdjustedSpeed();
-        const distanceThisFrame = (pixelsPerSecond * delta) / 1000;
-        this.gameState.distanceTraveled += distanceThisFrame;
-
-        const scoreThreshold = 500;
-        const currentScoreSegment = Math.floor(this.gameState.distanceTraveled / scoreThreshold);
-        
-        if (currentScoreSegment > this.gameState.lastScoreSegment) {
-            const pointsToAdd = currentScoreSegment - (this.gameState.lastScoreSegment || 0);
-            this.updateScore(pointsToAdd);
-            this.gameState.lastScoreSegment = currentScoreSegment;
-        }
-    }
-
-    increaseDifficulty() { // User's original logic
-        this.gameState.level++;
-        this.gameState.currentSpeed = Math.min(
-            this.gameState.currentSpeed + window.gameOptions.platformSpeedIncrease,
-            window.gameOptions.maxPlatformSpeed
-        );
-        
-        this.updateAllSpeeds();
-        // this.updateUI(); // updateUI is called in the main update loop
-        
-        this.cameras.main.flash(200, 0, 255, 0);
-    }
-
-    triggerGameOver(reason) { // User's original logic
+    triggerGameOver(reason) {
         this.gameState.gameOver = true;
         this.physics.pause();
         
@@ -524,16 +525,12 @@ this.input.on('pointerdown', (pointer) => {
             this.domElements.gameOverScreen.style.display = 'block';
         }
         
-        if (this.gameTimer) {
-            this.gameTimer.remove();
-        }
-        
         this.cameras.main.shake(500, 0.02);
         this.player.setTint(0xff0000);
     }    
     
-    update(time, delta) { // User's original logic
-        if (this.gameState.gameOver) {
+    update(time, delta) {
+        if (this.gameState.gameOver || this.gameState.gameComplete) {
             // Keyboard game over controls remain
             if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
                 if(this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
@@ -553,9 +550,10 @@ this.input.on('pointerdown', (pointer) => {
             return;
         }
         
-        this.updateScoring(delta); // User's original call
+        // NEW: Update missile chase mechanics
+        this.updateMissileChase(delta);
 
-        // Unified input for jump (keyboard, canvas pointer, OR new jump button)
+        // Existing movement logic (unchanged)
         const jumpPressed = Phaser.Input.Keyboard.JustDown(this.spaceKey) || this.pointerJustDown;
         const jumpHeld = this.spaceKey.isDown || this.pointerIsDown;
 
@@ -563,52 +561,43 @@ this.input.on('pointerdown', (pointer) => {
             this.handleJumpOrDive();
         }
 
-        // Variable jump height logic (User's original)
         if (jumpHeld && this.isJumping && this.time.now - this.jumpStartTime < window.gameOptions.maxJumpHold) {
-            this.player.setVelocityY(window.gameOptions.jumpForce * -1); // Original logic for hold
+            this.player.setVelocityY(window.gameOptions.jumpForce * -1);
         }
 
-        if (!jumpHeld && this.isJumping && !this.isPlayerGrounded()) { // Original logic for release
+        if (!jumpHeld && this.isJumping && !this.isPlayerGrounded()) {
             this.isJumping = false;
             if (this.player.body.velocity.y < 0) {
                 this.player.setVelocityY(this.player.body.velocity.y * 0.3);
             }
         }
 
-        if (this.player.y > this.sys.game.config.height) { // User's original
+        if (this.player.y > this.sys.game.config.height) {
             this.triggerGameOver("You Fell UNDER the street! HOW?!?!?!");
             return;
         }
 
         this.player.x = window.gameOptions.playerStartPosition;
         if (this.gameState.collisionCooldown > 0) {
-            this.gameState.collisionCooldown--; // User's original
+            this.gameState.collisionCooldown--;
         }
 
         if (this.gameState.momentum < 100) {
             this.gameState.momentum = Math.min(100, 
-                this.gameState.momentum + window.gameOptions.momentumRecoveryRate); // User's original
+                this.gameState.momentum + window.gameOptions.momentumRecoveryRate);
             this.updateAllSpeeds();
         }
 
-        // User's original distance scoring
-        this.gameState.distanceTraveled += this.getAdjustedSpeed() * (1/60); 
-        if (Math.floor(this.gameState.distanceTraveled) % 100 === 0 && 
-            Math.floor(this.gameState.distanceTraveled) > 0) {
-            this.updateScore(1);
-        }
-
-        // Manage pedestrians (User's original)
+        // Manage pedestrians
         this.pedestrians.forEach((pedestrian, index) => {
             if (pedestrian.x < -pedestrian.displayWidth / 2) {
-                const basePositions = [100, 300, 500, 700]; // Base positions for pedestrians
+                const basePositions = [100, 300, 500, 700];
                 const randomOffset = Phaser.Math.Between(-50, 200);
                 pedestrian.x = this.sys.game.config.width + basePositions[index] + randomOffset;
-                // pedestrian.y = this.originY;
             }
         });
 
-        // Manage continuous street platforms with improved logic (User's original)
+        // Manage continuous street platforms
         let minDistance = this.sys.game.config.width * 2; 
         let rightmostX = -Infinity;
         
@@ -628,7 +617,7 @@ this.input.on('pointerdown', (pointer) => {
             this.addStreetSegment(this.sys.game.config.width + 200);
         }
 
-        // Handle jump buffer timing (User's original)
+        // Handle jump buffer timing
         if (this.jumpTimer > 0) {
             if (time - this.jumpTimer > this.jumpBufferDuration) {
                 this.jumpTimer = 0;
@@ -636,12 +625,11 @@ this.input.on('pointerdown', (pointer) => {
             }
         }
 
-        // Variable jump height logic (User's original, slightly different from earlier one)
+        // Variable jump height logic
         if (this.isJumping && !this.isPlayerGrounded()) {
             const holdDuration = this.time.now - this.jumpStartTime;
             if ((this.spaceKey.isDown || this.pointerIsDown) &&
                 holdDuration < window.gameOptions.maxJumpHold) {
-                // This is the stronger hold force application from original code
                 this.player.setVelocityY(this.player.body.velocity.y - window.gameOptions.jumpHoldForce * (delta / 16.67));
             } else {
                 this.isJumping = false;
@@ -651,7 +639,7 @@ this.input.on('pointerdown', (pointer) => {
             }
         }
 
-        // Only reset jump state when landing (User's original)
+        // Only reset jump state when landing
         if (this.isPlayerGrounded() && !this.wasGrounded) {
             if (this.isDiving) {
                 this.isDiving = false;
@@ -665,28 +653,22 @@ this.input.on('pointerdown', (pointer) => {
 
         this.wasGrounded = this.isPlayerGrounded();
         this.updateUI();
-        this.pointerJustDown = false; // Reset at end of update
+        this.pointerJustDown = false;
 
-        // DASH LOGIC (User's original)
-        const dashPressed = this.shiftKey.isDown && this.isPlayerGrounded() && !this.isJumping; // Keyboard dash
+        // DASH LOGIC (unchanged)
+        const dashPressed = this.shiftKey.isDown && this.isPlayerGrounded() && !this.isJumping;
 
-        // console.log("dashPressed:", dashPressed, "dashReady:", this.dashReady, "grounded:", this.isPlayerGrounded(), "jumping:", this.isJumping); // User's original log
-
-        // Keyboard dash handling
         if (dashPressed && this.dashReady) {
             this.doDash();
             this.dashReady = false;
             this.lastDashTime = this.time.now;
         }
 
-        // Reset dash after cooldown (User's original)
-        // Note: The original code had `!dashPressed` here. If a dash button is held, this might cause issues.
-        // For minimal change, I'll keep it as is, but the button dash is handled by its own event.
         if (!this.shiftKey.isDown && (this.time.now - this.lastDashTime > this.dashCooldown)) {
             this.dashReady = true;
         }
 
-        // Visual feedback for dashJump window (User's original)
+        // Visual feedback for dashJump window
         if (this.canDashJump()) {
             this.player.setTint(0xffaa00); 
             console.log("DASH JUMP WINDOW ACTIVE!"); 
@@ -697,84 +679,83 @@ this.input.on('pointerdown', (pointer) => {
         }
     }
 
-    
-doDash() { // User's original logic
-    console.log("=== DASH STARTED ===");
-    console.log("Time:", this.time.now);
-    console.log("Player position:", this.player.x, this.player.y);
-    
-    this.isDashing = true;
-    console.log("isDashing set to:", this.isDashing);
-    
-    this.player.setVelocityX(600);
-    this.player.setTint(0x00ffff);
-    
-    this.time.delayedCall(this.dashDuration, () => {
-        console.log("=== DASH ENDING ===");
+    // Existing dash methods (unchanged)
+    doDash() {
+        console.log("=== DASH STARTED ===");
         console.log("Time:", this.time.now);
+        console.log("Player position:", this.player.x, this.player.y);
         
-        if (this.isPlayerGrounded()) {
-            this.player.setVelocityX(0);
+        this.isDashing = true;
+        console.log("isDashing set to:", this.isDashing);
+        
+        this.player.setVelocityX(600);
+        this.player.setTint(0x00ffff);
+        
+        this.time.delayedCall(this.dashDuration, () => {
+            console.log("=== DASH ENDING ===");
+            console.log("Time:", this.time.now);
+            
+            if (this.isPlayerGrounded()) {
+                this.player.setVelocityX(0);
+            }
+            
+            this.time.delayedCall(this.dashJumpWindow, () => {
+                console.log("=== DASH JUMP WINDOW CLOSED ===");
+                console.log("Time:", this.time.now);
+                this.isDashing = false;
+            });
+        });
+    }
+
+    dashJump() {
+        console.log("🚀 === DASH JUMP ACTIVATED! ===");
+        console.log("Jump force:", this.dashJumpForce);
+        console.log("Horizontal boost:", this.dashJumpHorizontalBoost);
+        console.log("Player velocity before:", this.player.body.velocity.x, this.player.body.velocity.y);
+        
+        this.player.setVelocityY(this.dashJumpForce * -1);
+        this.player.setVelocityX(this.dashJumpHorizontalBoost);
+        
+        console.log("Player velocity after:", this.player.body.velocity.x, this.player.body.velocity.y);
+        
+        this.isDiving = false;
+        this.isJumping = true;
+        this.jumpHoldTime = 0;
+        this.jumpStartTime = this.time.now;
+        
+        this.player.setTint(0xffff00); 
+        this.cameras.main.shake(100, 0.005);
+        
+        this.isDashing = false;
+        console.log("Dash state reset, isDashing:", this.isDashing);
+    }
+
+    canDashJump() {
+        const timeSinceDashStart = this.time.now - this.lastDashTime;
+        const dashEndTime = this.dashDuration;
+        const dashJumpWindowEnd = this.dashDuration + this.dashJumpWindow;
+        
+        const canDash = this.isDashing && 
+               timeSinceDashStart >= dashEndTime && 
+               timeSinceDashStart <= dashJumpWindowEnd &&
+               this.isPlayerGrounded();
+        
+        if (canDash && !this.lastCanDashJump) {
+            console.log("🟡 DASH JUMP WINDOW OPENED!");
+            console.log("Time since dash start:", timeSinceDashStart);
+            console.log("Dash end time:", dashEndTime);
+            console.log("Window end time:", dashJumpWindowEnd);
         }
         
-        this.time.delayedCall(this.dashJumpWindow, () => {
-            console.log("=== DASH JUMP WINDOW CLOSED ===");
-            console.log("Time:", this.time.now);
-            this.isDashing = false;
-        });
-    });
-}
-dashJump() { // User's original logic
-    console.log("🚀 === DASH JUMP ACTIVATED! ===");
-    console.log("Jump force:", this.dashJumpForce);
-    console.log("Horizontal boost:", this.dashJumpHorizontalBoost);
-    console.log("Player velocity before:", this.player.body.velocity.x, this.player.body.velocity.y);
-    
-    this.player.setVelocityY(this.dashJumpForce * -1);
-    this.player.setVelocityX(this.dashJumpHorizontalBoost);
-    
-    console.log("Player velocity after:", this.player.body.velocity.x, this.player.body.velocity.y);
-    
-    this.isDiving = false;
-    this.isJumping = true;
-    this.jumpHoldTime = 0;
-    this.jumpStartTime = this.time.now;
-    
-    this.player.setTint(0xffff00); 
-    this.cameras.main.shake(100, 0.005);
-    
-    this.isDashing = false;
-    console.log("Dash state reset, isDashing:", this.isDashing);
-}
-
-canDashJump() { // User's original logic
-    const timeSinceDashStart = this.time.now - this.lastDashTime;
-    const dashEndTime = this.dashDuration;
-    const dashJumpWindowEnd = this.dashDuration + this.dashJumpWindow;
-    
-    const canDash = this.isDashing && 
-           timeSinceDashStart >= dashEndTime && 
-           timeSinceDashStart <= dashJumpWindowEnd &&
-           this.isPlayerGrounded();
-    
-    if (canDash && !this.lastCanDashJump) {
-        console.log("🟡 DASH JUMP WINDOW OPENED!");
-        console.log("Time since dash start:", timeSinceDashStart);
-        console.log("Dash end time:", dashEndTime);
-        console.log("Window end time:", dashJumpWindowEnd);
+        this.lastCanDashJump = canDash; 
+        return canDash;
     }
-    
-    this.lastCanDashJump = canDash; 
-    return canDash;
-}
 
-    // NEW: shutdown method to clean up global listener
     shutdown() {
         if (this.hideOnScreenButtonsHandler) {
             window.removeEventListener('keydown', this.hideOnScreenButtonsHandler);
             this.hideOnScreenButtonsHandler = null;
         }
-        // Reset pointer flags in case scene is exited while a button is held
         this.pointerIsDown = false;
         this.pointerJustDown = false;
     }
