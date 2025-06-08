@@ -42,7 +42,7 @@ class Stage1 extends Phaser.Scene {
             stageDistance: 0,
             stageProgress: 0,           // Percentage (0-100) of stage completed
             missilePosition: 0,         // Missile position across screen (0-100%)
-            momentum: 100,              // Start at full momentum
+            momentum: 0,              
             gameOver: false,
             gameComplete: false,
             distanceTraveled: 0,
@@ -270,18 +270,22 @@ class Stage1 extends Phaser.Scene {
         // Update missile position (moves at constant rate)
         this.gameState.missilePosition += (window.gameOptions.missileSpeed * delta) / 1000;
         this.gameState.missilePosition = Math.min(100, this.gameState.missilePosition);
-        
+
         // Update missile sprite position
         this.missile.x = (this.gameState.missilePosition / 100) * this.sys.game.config.width;
-        
-        // Update player progress based on momentum-adjusted speed
-        const speedRatio = this.getAdjustedSpeed() / window.gameOptions.platformStartSpeed;
-        const baseProgressRate = window.gameOptions.missileSpeed; // Same base rate as missile
-        const adjustedProgressRate = baseProgressRate * speedRatio;
-        
-        this.gameState.stageProgress += (adjustedProgressRate * delta) / 1000;
-        this.gameState.stageProgress = Math.min(100, this.gameState.stageProgress);
-        
+
+        // --- NEW: Player progress based on actual speed and target distance ---
+        // Convert delta from ms to seconds
+        const deltaSeconds = delta / 1000;
+        // Add distance traveled this frame
+        this.gameState.stageDistance += this.getAdjustedSpeed() * deltaSeconds;
+        // Calculate progress as a percentage of target distance
+        this.gameState.stageProgress = Math.min(
+            100,
+            (this.gameState.stageDistance / window.gameOptions.stageTargetDistance) * 100
+        );
+        // --- END NEW ---
+
         // Check win/lose conditions
         this.checkStageCompletion();
     }
