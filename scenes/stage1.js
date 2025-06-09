@@ -1,6 +1,6 @@
 // Enhanced game options for street-level endless runner
 window.gameOptions = window.gameOptions || {
-    platformStartSpeed: 350,
+    platformStartSpeed: 300,
     platformSpeedIncrease: 15,
     maxPlatformSpeed: 800,
     playerGravity: 1200,
@@ -10,10 +10,14 @@ window.gameOptions = window.gameOptions || {
     playerStartPosition: 200,
     jumps: 1,
     difficultyIncreaseInterval: 10,
-    pedestrianSpawnChance: 0.4,
+    pedestrianSpawnChance: 0.3,
+    // Updated difficulty scaling
+    midGameSpawnIncrease: 0.2,             // +0.2 at 50% progress
+    finalSprintSpawnRate: 0.9,             // 3x spawn rate (0.3 * 3 = 0.9)
+    finalSprintThreshold: 80,              // Start intense spawn at 80% progress
     // Updated for missile chase mechanics
     stageDuration: 60,          // 60 seconds to complete stage
-    stageTargetDistance: 15000, // Distance needed to win
+    stageTargetDistance: 17000,            // Increased from 15000
     missileSpeed: 1.67,         // Missile moves 1.67% per second (100% in 60s)
     momentumLossPerCollision: 15,
     momentumRecoveryRate: 0.1
@@ -42,7 +46,7 @@ class Stage1 extends Phaser.Scene {
             stageDistance: 0,
             stageProgress: 0,           // Percentage (0-100) of stage completed
             missilePosition: 0,         // Missile position across screen (0-100%)
-            momentum: 0,              
+            momentum: 100,              
             gameOver: false,
             gameComplete: false,
             distanceTraveled: 0,
@@ -52,6 +56,11 @@ class Stage1 extends Phaser.Scene {
             collisions: 0,
             completionReason: ""
         };
+
+        // Initialize this line after other initializations
+        this.extraPedestrians = [];
+        this.barrageActivated = false;
+        this.barrageStartTime = 0;
 
         // Initialize DOM UI
         this.initializeUI();
@@ -247,21 +256,30 @@ class Stage1 extends Phaser.Scene {
 
     // Updated collision handling
     hitPedestrian(player, pedestrian) {
-        if (this.gameState.collisionCooldown <= 0) {
-            this.gameState.momentum = Math.max(10, 
-                this.gameState.momentum - window.gameOptions.momentumLossPerCollision);
-            this.gameState.collisions++;
-            
-            this.gameState.collisionCooldown = 45; 
-            
-            this.cameras.main.shake(100, 0.01);
-            this.player.setTint(0xff4444);
-            
-            this.time.delayedCall(200, () => {
-                this.player.setTint(0x0088ff);
-            });
-            
-            this.updateAllSpeeds();
+        // Add a collision flag to each pedestrian to prevent multiple hits
+        if (pedestrian.isHit || this.gameState.collisionCooldown <= 0) {
+            if (!pedestrian.isHit) {
+                this.gameState.momentum = Math.max(10, 
+                    this.gameState.momentum - window.gameOptions.momentumLossPerCollision);
+                this.gameState.collisions++;
+                
+                this.gameState.collisionCooldown = 45; 
+                
+                this.cameras.main.shake(100, 0.01);
+                this.player.setTint(0xff4444);
+                
+                this.time.delayedCall(200, () => {
+                    this.player.setTint(0x0088ff);
+                });
+                
+                this.updateAllSpeeds();
+                
+                // Mark this pedestrian as hit temporarily
+                pedestrian.isHit = true;
+                this.time.delayedCall(500, () => {
+                    pedestrian.isHit = false;
+                });
+            }
         }
     }
 
@@ -449,6 +467,14 @@ class Stage1 extends Phaser.Scene {
         });
         
         this.updatePedestrianSpeeds();
+        
+        // Update barrage pedestrians separately if they exist
+        if (this.extraPedestrians && this.extraPedestrians.length > 0) {
+            this.extraPedestrians.forEach(pedestrian => {
+                const speedVariation = 0.9 + (Math.random() * 0.4);
+                pedestrian.setVelocityX(-adjustedSpeed * speedVariation);
+            });
+        }
     }
 
     setupInput() {
@@ -592,12 +618,34 @@ class Stage1 extends Phaser.Scene {
             this.updateAllSpeeds();
         }
 
-        // Manage pedestrians
+        // Manage pedestrians with dynamic spawn rates
         this.pedestrians.forEach((pedestrian, index) => {
             if (pedestrian.x < -pedestrian.displayWidth / 2) {
-                const basePositions = [100, 300, 500, 700];
-                const randomOffset = Phaser.Math.Between(-50, 200);
-                pedestrian.x = this.sys.game.config.width + basePositions[index] + randomOffset;
+                const spawnChance = this.getDynamicSpawnChance();
+                
+                // Add this debug log to see the actual values
+                if (index === 0) { // Only log once per frame
+                    console.log(`Progress: ${this.gameState.stageProgress.toFixed(1)}%, Spawn chance: ${spawnChance.toFixed(2)}`);
+                }
+                
+                // INCREASED scaling for more noticeable effect
+                const adjustedChance = spawnChance * 0.95; // Changed from 0.8 to 0.95
+                
+                if (Math.random() < adjustedChance) {
+                    const basePositions = [100, 300, 500, 700];
+                    
+                    // For final sprint, spawn them much closer together
+                    let randomOffset;
+                    if (this.gameState.stageProgress >= window.gameOptions.finalSprintThreshold) {
+                        randomOffset = Phaser.Math.Between(-20, 50); // Much closer spacing
+                    } else {
+                        randomOffset = Phaser.Math.Between(-50, 200); // Normal spacing
+                    }
+                    
+                    pedestrian.x = this.sys.game.config.width + basePositions[index] + randomOffset;
+                } else {
+                    pedestrian.x = this.sys.game.config.width + 1500 + (index * 200);
+                }
             }
         });
 
@@ -681,6 +729,18 @@ class Stage1 extends Phaser.Scene {
         } else if (this.isPlayerGrounded() && !this.isJumping && !this.isDiving) {
             this.player.setTint(0x0088ff); 
         }
+
+        // Check for barrage mode activation - UNCOMMENT AND IMPROVE
+        if (this.gameState.stageProgress >= window.gameOptions.finalSprintThreshold && 
+            !this.barrageActivated) {
+            this.activateBarrageMode();
+            this.barrageActivated = true;
+        }
+        
+        // Manage barrage pedestrians if active
+        if (this.barrageActivated) {
+            this.manageBarragePedestrians();
+        }
     }
 
     // Existing dash methods (unchanged)
@@ -755,13 +815,112 @@ class Stage1 extends Phaser.Scene {
         return canDash;
     }
 
+    // Enhanced manageBarragePedestrians with increasing difficulty
+    manageBarragePedestrians() {
+        if (this.extraPedestrians.length === 0) return;
+        
+        // Increase spawn rate over time in barrage mode
+        const timeInBarrage = this.time.now - this.barrageStartTime || 0;
+        const baseSpawnChance = Math.min(0.98, 0.85 + (timeInBarrage / 10000)); // Increases to 98%
+        
+        this.extraPedestrians.forEach((pedestrian, index) => {
+            if (pedestrian.x < -pedestrian.displayWidth / 2) {
+                if (Math.random() < baseSpawnChance) {
+                    // Spawn in tighter formations as time progresses
+                    const formationTightness = Math.min(60, 120 - (timeInBarrage / 100));
+                    const baseX = this.sys.game.config.width + 100;
+                    const clusterOffset = Math.floor(index / 3) * 250;
+                    const withinClusterOffset = (index % 3) * formationTightness;
+                    
+                    pedestrian.x = baseX + clusterOffset + withinClusterOffset;
+                    
+                    // Gradually increase speed in barrage mode
+                    const speedBoost = 1.0 + (timeInBarrage / 20000); // Up to 1.5x speed
+                    const speedVariation = 0.9 + (Math.random() * 0.3);
+                    pedestrian.setVelocityX(-this.getAdjustedSpeed() * speedVariation * speedBoost);
+                } else {
+                    pedestrian.x = this.sys.game.config.width + 2000;
+                }
+            }
+        });
+    }
+
+    // Enhanced activateBarrageMode 
+    activateBarrageMode() {
+        if (this.extraPedestrians.length === 0) {
+            console.log("🚨 ACTIVATING BARRAGE MODE! 🚨");
+            this.barrageStartTime = this.time.now;
+            
+            this.spawnBarragePedestrians();
+        }
+    }
+
+    spawnBarragePedestrians() {
+        const numWaves = 3;
+        const pedestriansPerWave = 3;
+        
+        for (let wave = 0; wave < numWaves; wave++) {
+            for (let i = 0; i < pedestriansPerWave; i++) {
+                const extraPed = this.physics.add.sprite(
+                    this.sys.game.config.width + 200 + (wave * 350) + (i * 100),
+                    this.originY,
+                    "pedestrian"
+                );
+                
+                extraPed.setImmovable(true);
+                extraPed.setTint(0xff00ff);
+                extraPed.isHit = false;
+                extraPed.setScale(1.1);
+                
+                const speedVariation = 0.9 + (Math.random() * 0.4);
+                extraPed.setVelocityX(-this.getAdjustedSpeed() * speedVariation);
+                
+                this.physics.add.overlap(this.player, extraPed, this.hitPedestrian, null, this);
+                this.extraPedestrians.push(extraPed);
+            }
+        }
+    }
+
+    // Better cleanup
     shutdown() {
+        // Clean up barrage pedestrians
+        if (this.extraPedestrians) {
+            this.extraPedestrians.forEach(ped => {
+                if (ped && ped.active) {
+                    ped.destroy();
+                }
+            });
+            this.extraPedestrians = [];
+        }
+        
         if (this.hideOnScreenButtonsHandler) {
             window.removeEventListener('keydown', this.hideOnScreenButtonsHandler);
             this.hideOnScreenButtonsHandler = null;
         }
         this.pointerIsDown = false;
         this.pointerJustDown = false;
+    }
+
+    getDynamicSpawnChance() {
+        const progress = this.gameState.stageProgress;
+        const baseChance = window.gameOptions.pedestrianSpawnChance;
+        
+        let spawnChance;
+        if (progress >= window.gameOptions.finalSprintThreshold) {
+            // 80%+ progress: EXTREME spawn rate (almost 100%)
+            spawnChance = 1.0; // 100% spawn rate - EVERY pedestrian spawns
+            console.log(`🔥 FINAL SPRINT! Progress: ${progress}%, Spawn rate: ${spawnChance}`);
+        } else if (progress >= 50) {
+            // 50-80%: Noticeable increase
+            spawnChance = 0.65; // More than double base rate
+            console.log(`⚡ Mid-game mode. Progress: ${progress}%, Spawn rate: ${spawnChance}`);
+        } else {
+            // 0-50%: Base difficulty
+            spawnChance = baseChance; // 0.3
+            console.log(`🟢 Early game mode. Progress: ${progress}%, Spawn rate: ${spawnChance}`);
+        }
+        
+        return spawnChance;
     }
 }
 
