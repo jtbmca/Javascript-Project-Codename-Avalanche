@@ -1,26 +1,26 @@
 // Enhanced game options for street-level endless runner
 window.gameOptions = window.gameOptions || {
-    platformStartSpeed: 300,
-    platformSpeedIncrease: 15,
-    maxPlatformSpeed: 800,
-    playerGravity: 1200,
-    jumpForce: 400, // Reduced from 600 to 400 for proper tap jump
-    maxJumpHold: 300,
-    jumpHoldForce: 15, // Reduced from 60 to 15 for proper scaling
-    playerStartPosition: 200,
-    jumps: 1,
-    difficultyIncreaseInterval: 10,
-    pedestrianSpawnChance: 0.3,
+    platformStartSpeed: 300,                   // Initial speed of moving platforms (pixels/second)
+    platformSpeedIncrease: 15,                 // Speed increase per level/interval (pixels/second)
+    maxPlatformSpeed: 800,                     // Maximum platform speed cap (pixels/second)
+    playerGravity: 1200,                       // Downward gravity force applied to player
+    jumpForce: 400,                            // Initial upward velocity when jumping (reduced from 600 to 400 for proper tap jump)
+    maxJumpHold: 300,                          // Maximum time player can hold jump for variable height (milliseconds)
+    jumpHoldForce: 15,                         // Additional upward force applied per frame while holding jump (reduced from 60 to 15 for proper scaling)
+    playerStartPosition: 200,                  // Player's default X position on screen (pixels from left)
+    jumps: 1,                                  // Maximum number of jumps allowed (multi-jump capability)
+    difficultyIncreaseInterval: 10,            // Interval for increasing game difficulty (units/time)
+    pedestrianSpawnChance: 0.4,                // Base probability of spawning pedestrians (0-1, where 1 = 100%)
     // Updated difficulty scaling
-    midGameSpawnIncrease: 0.2,             // +0.2 at 50% progress
-    finalSprintSpawnRate: 0.9,             // 3x spawn rate (0.3 * 3 = 0.9)
-    finalSprintThreshold: 80,              // Start intense spawn at 80% progress
+    midGameSpawnIncrease: 0.2,                 // Additional spawn rate at 50% stage progress (+0.2 at 50% progress)
+    finalSprintSpawnRate: 0.8,                 // Spawn rate during final sprint phase (3x spawn rate: 0.3 * 3 = 0.9)
+    finalSprintThreshold: 80,                  // Stage progress percentage when final sprint begins (80% = intense spawn phase)
     // Updated for missile chase mechanics
-    stageDuration: 60,          // 60 seconds to complete stage
-    stageTargetDistance: 17000,            // Increased from 15000
-    missileSpeed: 1.67,         // Missile moves 1.67% per second (100% in 60s)
-    momentumLossPerCollision: 15,
-    momentumRecoveryRate: 0.1
+    stageDuration: 60,                         // Total time to complete the stage (60 seconds)
+    stageTargetDistance: 17000,                // Distance player must travel to complete stage (pixels, increased from 15000)
+    missileSpeed: 1.70,                        // Missile progression rate as percentage per second (1.70% per second = 102% in 60s)
+    momentumLossPerCollision: 15,              // Momentum percentage lost when hitting pedestrians (affects speed)
+    momentumRecoveryRate: 0.1                  // Rate at which momentum naturally recovers per frame (percentage points)
 };
 
 class Stage1 extends Phaser.Scene {
@@ -653,14 +653,7 @@ class Stage1 extends Phaser.Scene {
             } else {
                 this.isDashJumping = false;
                 this.isReturningFromDashJump = true; // NEW: Flag to prevent position reset
-                
-                // FIXED: Wait until player lands before starting return tween
-                if (this.isPlayerGrounded()) {
-                    this.startDashJumpReturn();
-                } else {
-                    // Wait for landing
-                    this.returnWaitingForLanding = true;
-                }
+                this.startDashJumpReturn();
             }
         }
 
@@ -828,14 +821,14 @@ class Stage1 extends Phaser.Scene {
         this.pointerJustDown = false;
     }
 
-    // Updated dash method - ensure it doesn't interfere with dash jump
+    // Updated dash method - prevent going behind startPosition but allow dashing
     doDash() {
         console.log("=== DASH STARTED ===");
         console.log("Time:", this.time.now);
         console.log("Player position:", this.player.x, this.player.y);
         
         this.isDashing = true;
-        this.isDashTweening = true; // NEW: Flag to prevent position interference
+        this.isDashTweening = true;
         this.dashInvulnerable = true;
         console.log("isDashing set to:", this.isDashing);
         console.log("🛡️ Dash invulnerability activated!");
@@ -843,11 +836,22 @@ class Stage1 extends Phaser.Scene {
         // Stop any existing tweens on the player to prevent conflicts
         this.tweens.killTweensOf(this.player);
         
+        // FIXED: If returning from dash jump, clear those flags since we're starting a new dash
+        if (this.isDashJumpReturning || this.isReturningFromDashJump) {
+            this.isDashJumpReturning = false;
+            this.isReturningFromDashJump = false;
+            console.log("🔄 Interrupting dash jump return with new dash");
+        }
+        
         // Calculate forward movement distance (25-75 pixels)
         const dashDistance = Phaser.Math.Between(25, 75);
-        const targetX = Math.min(
-            this.player.x + dashDistance, 
-            window.gameOptions.playerStartPosition + 100
+        // FIXED: Ensure we don't go behind startPosition
+        const targetX = Math.max(
+            window.gameOptions.playerStartPosition, // Don't go behind start position
+            Math.min(
+                this.player.x + dashDistance, 
+                window.gameOptions.playerStartPosition + 100
+            )
         );
         
         // Initial velocity burst
@@ -862,7 +866,6 @@ class Stage1 extends Phaser.Scene {
             ease: 'Power2.easeOut',
             onComplete: () => {
                 console.log("🏃 Dash forward movement complete");
-                // Don't start return here - wait for dash to fully end
             }
         });
         
