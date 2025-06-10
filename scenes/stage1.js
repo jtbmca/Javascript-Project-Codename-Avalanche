@@ -345,9 +345,7 @@ class Stage1 extends Phaser.Scene {
         else if (this.gameState.missilePosition >= 100 && !this.gameState.gameComplete && !this.gameState.gameOver) {
             this.triggerGameOver("The missile got away!");
         }
-    }
-
-    // New stage completion handler
+    }    // New stage completion handler
     completeStage(reason) {
         this.gameState.gameComplete = true;
         this.gameState.completionReason = reason;
@@ -362,13 +360,19 @@ class Stage1 extends Phaser.Scene {
         this.physics.pause();
         
         if (this.domElements.gameOverScreen) {
-            this.domElements.gameOverReason.textContent = `${reason} Stage Complete!`;
+            this.domElements.gameOverReason.textContent = `${reason} Stage Complete! Moving to Tower...`;
             this.domElements.gameOverScore.textContent = `Final Score: ${this.gameState.score}`;
             this.domElements.gameOverScreen.style.display = 'block';
         }
-        
-        this.cameras.main.flash(500, 0, 255, 0);
+          this.cameras.main.flash(500, 0, 255, 0);
         this.player.setTint(0x00ff00);
+        
+        console.log("🎉 Stage 1 completed! Moving to tower1...");
+        
+        // Transition to tower1 after a delay
+        this.time.delayedCall(3000, () => {
+            this.scene.start("tower1");
+        });
     }
 
     // Updated scoring for pedestrian avoidance

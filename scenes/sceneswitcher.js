@@ -14,9 +14,8 @@ class SceneSwitcher extends Phaser.Scene {
             fill: "#fff",
             align: 'center'
         }).setOrigin(0.5);
-        
-        // Add instructions
-        this.add.text(centerX, centerY, "Press 1 for Stage 1 (Street Runner)\nPress 2 for Dungeon 1 (Platform Jumper)\nPress 3 for Stage 2 (Rooftop Jump)", {
+          // Add instructions
+        this.add.text(centerX, centerY, "Press 1 for Stage 1 (Street Runner)\nPress 2 for Tower 1 (Platform Jumper)\nPress 3 for Stage 2 (Rooftop Jump)", {
             font: "24px Arial",
             fill: "#fff",
             align: 'center',
@@ -58,14 +57,12 @@ class SceneSwitcher extends Phaser.Scene {
             .setInteractive()
             .on('pointerdown', () => {
                 this.scene.start("Stage1");
-            });
-
-        // Dungeon 1 Button
-        this.add.text(centerX, centerY + 210, "Dungeon 1", buttonConfig)
+            });        // Dungeon 1 Button
+        this.add.text(centerX, centerY + 210, "Tower 1", buttonConfig)
             .setOrigin(0.5)
             .setInteractive()
             .on('pointerdown', () => {
-                this.scene.start("Dungeon1");
+                this.scene.start("tower1");
             });
 
         // Stage 2 Button
@@ -83,10 +80,9 @@ class SceneSwitcher extends Phaser.Scene {
             console.log("Starting Stage 1...");
             this.scene.start("Stage1");
         }
-        
-        if (Phaser.Input.Keyboard.JustDown(this.key2) || Phaser.Input.Keyboard.JustDown(this.keyNumpad2)) {
-            console.log("Starting Dungeon 1...");
-            this.scene.start("Dungeon1");
+          if (Phaser.Input.Keyboard.JustDown(this.key2) || Phaser.Input.Keyboard.JustDown(this.keyNumpad2)) {
+            console.log("Starting tower1...");
+            this.scene.start("tower1");
         }
         if (Phaser.Input.Keyboard.JustDown(this.key3) || Phaser.Input.Keyboard.JustDown(this.keyNumpad3)) {
             console.log("Starting Stage 2...");
