@@ -1,4 +1,4 @@
-// Enhanced game options for street-level endless runner
+// Enhance3d game options for street-level endless runner
 window.gameOptions = window.gameOptions || {
     platformStartSpeed: 300,                   // Initial speed of moving platforms (pixels/second)
     platformSpeedIncrease: 15,                 // Speed increase per level/interval (pixels/second)
