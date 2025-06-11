@@ -45,9 +45,10 @@ window.tower1Options = {
 };
 
 class tower1 extends Phaser.Scene {
-    constructor() {
+        constructor() {
         super("tower1");
         this.hideOnScreenButtonsHandler = null;
+        this.sceneTransitioning = false; // Prevent multiple scene starts
     }
 
     preload() {
@@ -57,6 +58,9 @@ class tower1 extends Phaser.Scene {
     }
 
     create() {        console.log("🏗️ Tower1 scene starting...");
+        
+        // Reset scene transitioning flag
+        this.sceneTransitioning = false;
           // Initialize game state for tower climbing
         this.gameState = {
             score: 0,
@@ -429,15 +433,17 @@ class tower1 extends Phaser.Scene {
         }
         this.hideOnScreenButtonsHandler = () => {
             if (scene.domElements.dashButton) scene.domElements.dashButton.style.display = 'none';
-            if (scene.domElements.jumpButton) scene.domElements.jumpButton.style.display = 'none';
-        };
+            if (scene.domElements.jumpButton) scene.domElements.jumpButton.style.display = 'none';        };
         window.addEventListener('keydown', this.hideOnScreenButtonsHandler);
 
         // Restart/menu buttons
         if (this.domElements.gameOverRestartButtonMobile) {
             this.domElements.gameOverRestartButtonMobile.addEventListener('click', () => {
                 if (scene.gameState.gameOver || scene.gameState.gameComplete) {
+                    if (scene.sceneTransitioning) return; // Prevent multiple transitions
+                    scene.sceneTransitioning = true;
                     if(scene.domElements.gameOverScreen) scene.domElements.gameOverScreen.style.display = 'none';
+                    if (scene.domElements.instructions) scene.domElements.instructions.style.display = 'none';
                     scene.scene.restart();
                 }
             });
@@ -446,7 +452,10 @@ class tower1 extends Phaser.Scene {
         if (this.domElements.gameOverMenuButtonMobile) {
             this.domElements.gameOverMenuButtonMobile.addEventListener('click', () => {
                 if (scene.gameState.gameOver || scene.gameState.gameComplete) {
+                    if (scene.sceneTransitioning) return; // Prevent multiple transitions
+                    scene.sceneTransitioning = true;
                     if(scene.domElements.gameOverScreen) scene.domElements.gameOverScreen.style.display = 'none';
+                    if (scene.domElements.instructions) scene.domElements.instructions.style.display = 'none';
                     scene.scene.start("SceneSwitcher");
                 }
             });
@@ -834,8 +843,7 @@ class tower1 extends Phaser.Scene {
         }
         
         this.cameras.main.shake(500, 0.02);
-        this.player.setTint(0xff0000);
-    }
+        this.player.setTint(0xff0000);    }
 
     completeStage(reason) {
         this.gameState.gameComplete = true;
@@ -867,33 +875,44 @@ class tower1 extends Phaser.Scene {
         
         // Transition to Stage2 after a delay
         this.time.delayedCall(3000, () => {
+            console.log("🔄 Starting automatic transition to Stage2...");
+            this.sceneTransitioning = true;
+            // Hide the completion screen before transitioning
+            if (this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
+            if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
             this.scene.start("Stage2");
         });
-    }    update(time, delta) {
-        if (this.gameState.gameOver || this.gameState.gameComplete) {
+    }update(time, delta) {        if (this.gameState.gameOver || this.gameState.gameComplete) {
             // Game over controls
             if (Phaser.Input.Keyboard.JustDown(this.keyR)) {
+                if (this.sceneTransitioning) return; // Prevent multiple transitions
+                this.sceneTransitioning = true;
                 if(this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
+                if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
                 this.scene.restart();
             }
             if (Phaser.Input.Keyboard.JustDown(this.keyESC)) {
+                if (this.sceneTransitioning) return; // Prevent multiple transitions
+                this.sceneTransitioning = true;
                 if(this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
+                if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
                 this.scene.start("SceneSwitcher");
             }
             return;
         }
-        
-        if (Phaser.Input.Keyboard.JustDown(this.keyESC)) {
+          if (Phaser.Input.Keyboard.JustDown(this.keyESC)) {
+            if (this.sceneTransitioning) return; // Prevent multiple transitions
+            this.sceneTransitioning = true;
+            if (this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
+            if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
             this.scene.start("SceneSwitcher");
             return;
-        }
-        
-        // Handle jump input
+        }          // Handle jump input - normal gameplay should always work
         if (Phaser.Input.Keyboard.JustDown(this.spaceKey) || this.pointerJustDown) {
             this.handleJump();
         }
 
-        // Handle dash input (from Stage1/2)
+        // Handle dash input (from Stage1/2) - normal gameplay should always work
         if (Phaser.Input.Keyboard.JustDown(this.shiftKey) && this.dashReady) {
             this.doDash();
             this.dashReady = false;
@@ -1055,8 +1074,7 @@ class tower1 extends Phaser.Scene {
         if (this.timeTimer) {
             this.timeTimer.remove();
         }
-        
-        if (this.hideOnScreenButtonsHandler) {
+          if (this.hideOnScreenButtonsHandler) {
             window.removeEventListener('keydown', this.hideOnScreenButtonsHandler);
             this.hideOnScreenButtonsHandler = null;
         }
@@ -1064,8 +1082,17 @@ class tower1 extends Phaser.Scene {
         // Clean up any active tweens
         this.tweens.killTweensOf(this.player);
         
+        // Hide all DOM elements when shutting down
+        if (this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
+        if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
+        
         this.pointerIsDown = false;
         this.pointerJustDown = false;
+        
+        // Cancel any pending scene transitions
+        if (this.scene.scene.time) {
+            this.scene.scene.time.removeAllEvents();
+        }
     }
 }
 

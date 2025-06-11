@@ -141,10 +141,38 @@ canvas {
     margin: 8px;
     cursor: pointer;
     pointer-events: auto; /* Ensure clickable */
+    min-width: 120px;
+    min-height: 50px;
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: all 0.2s ease;
 }
 
 .game-over-btn:hover {
     background-color: #555;
+    border-color: #888;
+    transform: scale(1.05);
+}
+
+.game-over-btn:focus {
+    background-color: #555;
+    border-color: #00ffff;
+    outline: 2px solid #00ffff;
+    outline-offset: 2px;
+    transform: scale(1.05);
+}
+
+.game-over-btn:active {
+    transform: scale(0.95);
+    background-color: #222;
+}
+
+.game-over-btn.touching,
+.game-over-btn.clicking {
+    transform: scale(0.95);
+    background-color: #222;
 }
 
 .keyboard-instructions { /* Original class for keyboard instructions */
@@ -168,6 +196,32 @@ canvas {
     opacity: 0.85;
     z-index: 9999; 
     pointer-events: auto; /* Ensure it can receive events */
+    min-width: 80px;
+    min-height: 60px;
+    touch-action: manipulation; /* Improve touch response */
+    -webkit-user-select: none;
+    user-select: none; /* Prevent text selection */
+    -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+    transition: all 0.1s ease;
+}
+
+.jump-btn:hover, .jump-btn:focus {
+    opacity: 1;
+    transform: scale(1.05);
+    background: #45a049;
+    outline: none; /* Remove default outline */
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.8);
+}
+
+.jump-btn:active {
+    transform: scale(0.95);
+    background: #3d8b40;
+}
+
+.jump-btn.touching,
+.jump-btn.clicking {
+    transform: scale(0.95);
+    background: #3d8b40;
 }
 
 
@@ -185,6 +239,32 @@ canvas {
     opacity: 0.85;
     z-index: 9999; 
     pointer-events: auto; /* Ensure it can receive events */
+    min-width: 80px;
+    min-height: 60px;
+    touch-action: manipulation; /* Improve touch response */
+    -webkit-user-select: none;
+    user-select: none; /* Prevent text selection */
+    -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+    transition: all 0.1s ease;
+}
+
+.dash-btn:hover, .dash-btn:focus {
+    opacity: 1;
+    transform: scale(1.05);
+    background: #00e6e6;
+    outline: none; /* Remove default outline */
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+}
+
+.dash-btn:active {
+    transform: scale(0.95);
+    background: #00cccc;
+}
+
+.dash-btn.touching,
+.dash-btn.clicking {
+    transform: scale(0.95);
+    background: #00cccc;
 }
 
 /* Responsive Design */

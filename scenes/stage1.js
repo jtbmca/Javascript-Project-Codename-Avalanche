@@ -23,10 +23,10 @@ window.gameOptions = window.gameOptions || {
     momentumRecoveryRate: 0.1                  // Rate at which momentum naturally recovers per frame (percentage points)
 };
 
-class Stage1 extends Phaser.Scene {
-    constructor() {
+class Stage1 extends Phaser.Scene {    constructor() {
         super("Stage1");
         this.hideOnScreenButtonsHandler = null;
+        this.sceneTransitioning = false; // Prevent multiple scene starts
     }
 
     preload() {
@@ -34,9 +34,10 @@ class Stage1 extends Phaser.Scene {
         this.load.image("player", "./assets/sprites/player.png");
         this.load.image("pedestrian", "./assets/sprites/player.png");
         this.load.image("missile", "./assets/sprites/player.png"); // Using player.png as missile placeholder
-    }
-
-    create() {
+    }    create() {
+        // Reset scene transitioning flag
+        this.sceneTransitioning = false;
+        
         // Initialize game state with missile chase mechanics
         this.gameState = {
             score: 0,
@@ -174,26 +175,30 @@ class Stage1 extends Phaser.Scene {
             if (scene.domElements.dashButton) scene.domElements.dashButton.style.display = 'none';
             if (scene.domElements.jumpButton) scene.domElements.jumpButton.style.display = 'none';
         };
-        window.addEventListener('keydown', this.hideOnScreenButtonsHandler);
-
-        if (this.domElements.gameOverRestartButtonMobile) {
+        window.addEventListener('keydown', this.hideOnScreenButtonsHandler);        if (this.domElements.gameOverRestartButtonMobile) {
             this.domElements.gameOverRestartButtonMobile.addEventListener('click', () => {
                 if (scene.gameState.gameOver || scene.gameState.gameComplete) {
+                    if (scene.sceneTransitioning) return; // Prevent multiple transitions
+                    scene.sceneTransitioning = true;
                     if(scene.domElements.gameOverScreen) scene.domElements.gameOverScreen.style.display = 'none';
+                    if (scene.domElements.instructions) scene.domElements.instructions.style.display = 'none';
                     scene.scene.restart();
                 }
-            });
-             this.domElements.gameOverRestartButtonMobile.addEventListener('touchstart', (e) => {
+            });             this.domElements.gameOverRestartButtonMobile.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 if (scene.gameState.gameOver || scene.gameState.gameComplete) {
+                    if (scene.sceneTransitioning) return; // Prevent multiple transitions
+                    scene.sceneTransitioning = true;
                     if(scene.domElements.gameOverScreen) scene.domElements.gameOverScreen.style.display = 'none';
+                    if (scene.domElements.instructions) scene.domElements.instructions.style.display = 'none';
                     scene.scene.restart();
                 }
             });
-        }
-        if (this.domElements.gameOverMenuButtonMobile) {
+        }        if (this.domElements.gameOverMenuButtonMobile) {
             this.domElements.gameOverMenuButtonMobile.addEventListener('click', () => {
                 if (scene.gameState.gameOver || scene.gameState.gameComplete) {
+                    if (scene.sceneTransitioning) return; // Prevent multiple transitions
+                    scene.sceneTransitioning = true;
                     if(scene.domElements.gameOverScreen) scene.domElements.gameOverScreen.style.display = 'none';
                     if (scene.domElements.instructions) scene.domElements.instructions.style.display = 'none';
                     scene.scene.start("SceneSwitcher");
@@ -202,6 +207,8 @@ class Stage1 extends Phaser.Scene {
             this.domElements.gameOverMenuButtonMobile.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 if (scene.gameState.gameOver || scene.gameState.gameComplete) {
+                    if (scene.sceneTransitioning) return; // Prevent multiple transitions
+                    scene.sceneTransitioning = true;
                     if(scene.domElements.gameOverScreen) scene.domElements.gameOverScreen.style.display = 'none';
                     if (scene.domElements.instructions) scene.domElements.instructions.style.display = 'none';
                     scene.scene.start("SceneSwitcher");
@@ -344,8 +351,9 @@ class Stage1 extends Phaser.Scene {
         // Player loses if missile reaches 100% before they complete stage
         else if (this.gameState.missilePosition >= 100 && !this.gameState.gameComplete && !this.gameState.gameOver) {
             this.triggerGameOver("The missile got away!");
-        }
-    }    // New stage completion handler
+        }    }
+
+    // New stage completion handler
     completeStage(reason) {
         this.gameState.gameComplete = true;
         this.gameState.completionReason = reason;
@@ -364,13 +372,19 @@ class Stage1 extends Phaser.Scene {
             this.domElements.gameOverScore.textContent = `Final Score: ${this.gameState.score}`;
             this.domElements.gameOverScreen.style.display = 'block';
         }
-          this.cameras.main.flash(500, 0, 255, 0);
+        
+        this.cameras.main.flash(500, 0, 255, 0);
         this.player.setTint(0x00ff00);
         
         console.log("🎉 Stage 1 completed! Moving to tower1...");
         
         // Transition to tower1 after a delay
         this.time.delayedCall(3000, () => {
+            console.log("🔄 Starting automatic transition to Tower1...");
+            this.sceneTransitioning = true;
+            // Hide the completion screen before transitioning
+            if (this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
+            if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
             this.scene.start("tower1");
         });
     }
@@ -591,22 +605,25 @@ class Stage1 extends Phaser.Scene {
         this.player.setTint(0xff0000);
     }    
     
-    update(time, delta) {
-        if (this.gameState.gameOver || this.gameState.gameComplete) {
-            // Keyboard game over controls - changed SPACE to R
+    update(time, delta) {        if (this.gameState.gameOver || this.gameState.gameComplete) {            // Keyboard game over controls - changed SPACE to R
             if (Phaser.Input.Keyboard.JustDown(this.keyR)) {
+                if (this.sceneTransitioning) return; // Prevent multiple transitions
+                this.sceneTransitioning = true;
                 if(this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
+                if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
                 this.scene.restart();
-            }
-            if (Phaser.Input.Keyboard.JustDown(this.keyESC)) {
+            }if (Phaser.Input.Keyboard.JustDown(this.keyESC)) {
+                if (this.sceneTransitioning) return; // Prevent multiple transitions
+                this.sceneTransitioning = true;
                 if(this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
                 if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
                 this.scene.start("SceneSwitcher");
             }
             return;
         }
-        
-        if (Phaser.Input.Keyboard.JustDown(this.keyESC)) {
+          if (Phaser.Input.Keyboard.JustDown(this.keyESC)) {
+            if (this.sceneTransitioning) return; // Prevent multiple transitions
+            this.sceneTransitioning = true;
             if (this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
             if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
             this.scene.start("SceneSwitcher");
@@ -665,12 +682,10 @@ class Stage1 extends Phaser.Scene {
         if (this.returnWaitingForLanding && this.isPlayerGrounded()) {
             this.returnWaitingForLanding = false;
             this.startDashJumpReturn();
-        }
-
-        // NEW: Update missile chase mechanics
+        }        // NEW: Update missile chase mechanics
         this.updateMissileChase(delta);
-
-        // REVERTED: Simple jump input handling
+        
+        // Handle jump input - normal gameplay should always work
         if (Phaser.Input.Keyboard.JustDown(this.spaceKey) || this.pointerJustDown) {
             this.handleJumpOrDive();
         }
@@ -1022,9 +1037,7 @@ class Stage1 extends Phaser.Scene {
                 this.extraPedestrians.push(extraPed);
             }
         }
-    }
-
-    // Better cleanup
+    }    // Better cleanup
     shutdown() {
         // Clean up barrage pedestrians
         if (this.extraPedestrians) {
@@ -1040,8 +1053,18 @@ class Stage1 extends Phaser.Scene {
             window.removeEventListener('keydown', this.hideOnScreenButtonsHandler);
             this.hideOnScreenButtonsHandler = null;
         }
+        
+        // Hide all DOM elements when shutting down
+        if (this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
+        if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
+        
         this.pointerIsDown = false;
         this.pointerJustDown = false;
+        
+        // Cancel any pending scene transitions
+        if (this.scene.scene.time) {
+            this.scene.scene.time.removeAllEvents();
+        }
     }
 
     getDynamicSpawnChance() {
