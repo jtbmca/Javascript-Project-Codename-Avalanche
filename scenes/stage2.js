@@ -38,7 +38,7 @@ class Stage2 extends Phaser.Scene {
 
     preload() {
         this.load.image("building", "./assets/sprites/platformb.png");
-        this.load.image("player", "./assets/sprites/player.png");
+        this.load.image("player", "./assets/sprites/Jaycean.png");
         this.load.image("obstacle", "./assets/sprites/player.png");
         this.load.image("missile", "./assets/sprites/player.png");    }
 

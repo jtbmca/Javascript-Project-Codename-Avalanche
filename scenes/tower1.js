@@ -53,7 +53,7 @@ class tower1 extends Phaser.Scene {
 
     preload() {
         this.load.image("platform", "./assets/sprites/platformb.png");
-        this.load.image("player", "./assets/sprites/player.png");
+        this.load.image("player", "./assets/sprites/Jaycean.png");
         this.load.image("wall", "./assets/sprites/platformb.png");
     }
 

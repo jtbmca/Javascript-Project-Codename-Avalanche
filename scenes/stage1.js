@@ -8,6 +8,7 @@ window.gameOptions = window.gameOptions || {
     maxJumpHold: 300,                          // Maximum time player can hold jump for variable height (milliseconds)
     jumpHoldForce: 15,                         // Additional upward force applied per frame while holding jump (reduced from 60 to 15 for proper scaling)
     playerStartPosition: 200,                  // Player's default X position on screen (pixels from left)
+    playerStartY: null,                       // Player's default Y position (null = auto, or set a value)
     jumps: 1,                                  // Maximum number of jumps allowed (multi-jump capability)
     difficultyIncreaseInterval: 10,            // Interval for increasing game difficulty (units/time)
     pedestrianSpawnChance: 0.4,                // Base probability of spawning pedestrians (0-1, where 1 = 100%)
@@ -31,13 +32,52 @@ class Stage1 extends Phaser.Scene {    constructor() {
 
     preload() {
         this.load.image("platform", "./assets/sprites/platformb.png");
-        this.load.image("player", "./assets/sprites/player.png");
+        
+        // Replace the single player image with your 4 sprite sheets
+        // this.load.image("player", "./assets/sprites/Jaycean.png");
+        
+        this.load.spritesheet('player_run1', './assets/sprites/player_run_sheet1.png', {
+            frameWidth: 192,
+            frameHeight: 108
+        });
+        this.load.spritesheet('player_run2', './assets/sprites/player_run_sheet2.png', {
+            frameWidth: 192,
+            frameHeight: 108
+        });
+        this.load.spritesheet('player_run3', './assets/sprites/player_run_sheet3.png', {
+            frameWidth: 192,
+            frameHeight: 108
+        });
+        this.load.spritesheet('player_run4', './assets/sprites/player_run_sheet4.png', {
+            frameWidth: 192,
+            frameHeight: 108
+        });
+        
         this.load.image("pedestrian", "./assets/sprites/player.png");
-        this.load.image("missile", "./assets/sprites/player.png"); // Using player.png as missile placeholder
+        this.load.image("missile", "./assets/sprites/player.png");
+        this.load.image("sky", "./assets/sprites/sky.png");
     }    create() {
         // Reset scene transitioning flag
-        this.sceneTransitioning = false;
-        
+        this.sceneTransitioning = false;        // --- PLAYER ANIMATIONS SETUP ---
+        const runFrames = [
+            ...this.anims.generateFrameNumbers('player_run1', { start: 0, end: 25 }),
+            ...this.anims.generateFrameNumbers('player_run2', { start: 0, end: 25 }),
+            ...this.anims.generateFrameNumbers('player_run3', { start: 0, end: 25 }),
+            ...this.anims.generateFrameNumbers('player_run4', { start: 0, end: 25 })
+        ];
+        this.anims.create({
+            key: 'run',
+            frames: runFrames,
+            frameRate: 16,
+            repeat: -1
+        });
+        // --- END PLAYER ANIMATIONS SETUP ---
+
+        // Add sky background
+        this.sky = this.add.image(0, 0, 'sky').setOrigin(0, 0).setDepth(-100);
+        this.sky.displayWidth = this.sys.game.config.width;
+        this.sky.displayHeight = this.sys.game.config.height;
+
         // Initialize game state with missile chase mechanics
         this.gameState = {
             score: 0,
@@ -99,7 +139,7 @@ class Stage1 extends Phaser.Scene {    constructor() {
         this.isDashing = false; 
         this.dashDuration = 200; 
         this.dashJumpWindow = 100; 
-        this.dashInvulnerable = false; // Add dash invulnerability flag
+        this.dashInvulnerable = false; // Add dash invulnerable flag
 
         // DashJump properties - ENHANCED for more dramatic effect
         this.dashJumpForce = 400; // Normal jump height
@@ -452,16 +492,28 @@ class Stage1 extends Phaser.Scene {    constructor() {
     setupPlayer() {
         this.player = this.physics.add.sprite(
             window.gameOptions.playerStartPosition,
-            this.originY,
-            "player"
+            window.gameOptions.playerStartY !== null ? window.gameOptions.playerStartY : this.originY,
+            "player_run1"
         );
         this.player.setGravityY(window.gameOptions.playerGravity);
         this.player.setCollideWorldBounds(true, false, false, false, true);
         this.playerJumps = 0;
         this.jumpTimer = 0;  
         this.jumpBufferDuration = 150; 
-        
         this.player.setTint(0x0088ff); 
+        // Wait for texture to load, then align feet to platform
+        this.player.on('texturecomplete', () => {
+            this.player.y = this.originY - (this.player.displayHeight / 2) + 4; // +4 for fine-tuning
+            this.player.body.setSize(60, 90);
+            this.player.body.setOffset(66, 0); // y offset 0, so feet match collision box
+        });
+        // If already loaded, set immediately
+        if (this.player.texture.key) {
+            this.player.y = this.originY - (this.player.displayHeight / 2) + 4;
+            this.player.body.setSize(60, 90);
+            this.player.body.setOffset(66, 0);
+        }
+        this.player.anims.play('run');
     }
 
     setupPedestrians() {
