@@ -176,9 +176,9 @@ class tower1 extends Phaser.Scene {
                 if (instructions) instructions.style.display = 'none';
             });
         }
-    }
-
-    initializeUI() {        this.domElements = {
+    }    initializeUI() {        console.log("🖥️ === INITIALIZING TOWER UI ===");
+        
+        this.domElements = {
             scoreDisplay: document.getElementById('scoreDisplay'),
             levelDisplay: document.getElementById('levelDisplay'), 
             speedDisplay: document.getElementById('speedDisplay'),
@@ -193,9 +193,19 @@ class tower1 extends Phaser.Scene {
             gameOverRestartButtonMobile: document.getElementById('gameOverRestartButtonMobile'),
             gameOverMenuButtonMobile: document.getElementById('gameOverMenuButtonMobile'),
         };
+        
+        console.log("🖥️ DOM Elements found:");
+        console.log("  - scoreDisplay:", !!this.domElements.scoreDisplay);
+        console.log("  - gameOverScreen:", !!this.domElements.gameOverScreen);
+        console.log("  - gameOverReason:", !!this.domElements.gameOverReason);
+        console.log("  - gameOverScore:", !!this.domElements.gameOverScore);
+        console.log("  - jumpButton:", !!this.domElements.jumpButton);
+        console.log("  - dashButton:", !!this.domElements.dashButton);
+        console.log("  - gameOverRestartButtonMobile:", !!this.domElements.gameOverRestartButtonMobile);
+        console.log("  - gameOverMenuButtonMobile:", !!this.domElements.gameOverMenuButtonMobile);
 
         this.updateUI();
-    }    updateUI() {
+    }updateUI() {
         if (!this.domElements.scoreDisplay) return;
 
         this.domElements.scoreDisplay.textContent = `Score: ${this.gameState.score}`;
@@ -348,16 +358,23 @@ class tower1 extends Phaser.Scene {
         this.player.setCollideWorldBounds(true);
         this.player.setBounce(0.1);
         this.player.setTint(0x0088ff);
-        
-        // Set player bounds to prevent going outside tower walls
+          // Set player bounds to prevent going outside tower walls
         this.player.body.setMaxVelocity(400, 600);
         
         console.log("👤 Player created at:", this.player.x, this.player.y);
-    }setupInput() {
+    }    setupInput() {
+        console.log("⌨️ === SETTING UP TOWER INPUT ===");
+        
         this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
         this.shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT); // Add dash key
         this.keyESC = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
         this.keyR = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
+        
+        console.log("⌨️ Keyboard keys initialized:");
+        console.log("  - Space key:", !!this.spaceKey);
+        console.log("  - Shift key:", !!this.shiftKey);
+        console.log("  - ESC key:", !!this.keyESC);
+        console.log("  - R key:", !!this.keyR);
 
         this.pointerIsDown = false;
         this.pointerJustDown = false;
@@ -402,63 +419,116 @@ class tower1 extends Phaser.Scene {
                 e.preventDefault();
                 scene.pointerIsDown = false;
             });
-        }
-
-        // Dash button setup
+        }        // Dash button setup
         if (this.domElements.dashButton) {
-            this.domElements.dashButton.addEventListener('touchstart', function(e) {
+            this.domElements.dashButton.addEventListener('touchstart', (e) => {
                 e.preventDefault();
-                if (scene.gameState.gameOver || scene.gameState.gameComplete) return;
-                if (scene.dashReady) {
-                    scene.doDash();
-                    scene.dashReady = false;
-                    scene.lastDashTime = scene.time.now;
+                if (this.gameState.gameOver || this.gameState.gameComplete) return;
+                if (this.dashReady) {
+                    this.doDash();
+                    this.dashReady = false;
+                    this.lastDashTime = this.time.now;
                 }
             });
 
-            this.domElements.dashButton.addEventListener('mousedown', function(e) {
+            this.domElements.dashButton.addEventListener('mousedown', (e) => {
                 e.preventDefault();
-                if (scene.gameState.gameOver || scene.gameState.gameComplete) return;
-                if (scene.dashReady) {
-                    scene.doDash();
-                    scene.dashReady = false;
-                    scene.lastDashTime = scene.time.now;
+                if (this.gameState.gameOver || this.gameState.gameComplete) return;
+                if (this.dashReady) {
+                    this.doDash();
+                    this.dashReady = false;
+                    this.lastDashTime = this.time.now;
                 }
             });
-        }
-
-        // Setup keyboard button hiding
+        }        // Setup keyboard button hiding
         if (this.hideOnScreenButtonsHandler) {
             window.removeEventListener('keydown', this.hideOnScreenButtonsHandler);
         }
         this.hideOnScreenButtonsHandler = () => {
-            if (scene.domElements.dashButton) scene.domElements.dashButton.style.display = 'none';
-            if (scene.domElements.jumpButton) scene.domElements.jumpButton.style.display = 'none';        };
-        window.addEventListener('keydown', this.hideOnScreenButtonsHandler);
-
-        // Restart/menu buttons
+            if (this.domElements.dashButton) this.domElements.dashButton.style.display = 'none';
+            if (this.domElements.jumpButton) this.domElements.jumpButton.style.display = 'none';
+        };
+        window.addEventListener('keydown', this.hideOnScreenButtonsHandler);        // Restart/menu buttons - Fixed with proper context and touchstart events
         if (this.domElements.gameOverRestartButtonMobile) {
             this.domElements.gameOverRestartButtonMobile.addEventListener('click', () => {
-                if (scene.gameState.gameOver || scene.gameState.gameComplete) {
-                    if (scene.sceneTransitioning) return; // Prevent multiple transitions
-                    scene.sceneTransitioning = true;
-                    if(scene.domElements.gameOverScreen) scene.domElements.gameOverScreen.style.display = 'none';
-                    if (scene.domElements.instructions) scene.domElements.instructions.style.display = 'none';
-                    scene.scene.restart();
+                console.log("🔄 RESTART BUTTON CLICKED");
+                if (this.gameState.gameOver || this.gameState.gameComplete) {
+                    console.log("🔄 Game state allows restart - proceeding");
+                    if (this.sceneTransitioning) {
+                        console.log("⚠️ Already transitioning, ignoring restart button");
+                        return;
+                    }
+                    this.sceneTransitioning = true;
+                    console.log("🔄 Restarting scene via button");
+                    if(this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
+                    if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
+                    this.scene.restart();
+                } else {
+                    console.log("❌ Game state does not allow restart");
                 }
             });
+            
+            this.domElements.gameOverRestartButtonMobile.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                console.log("🔄 RESTART BUTTON TOUCHED");
+                if (this.gameState.gameOver || this.gameState.gameComplete) {
+                    console.log("🔄 Game state allows restart - proceeding");
+                    if (this.sceneTransitioning) {
+                        console.log("⚠️ Already transitioning, ignoring restart touch");
+                        return;
+                    }
+                    this.sceneTransitioning = true;
+                    console.log("🔄 Restarting scene via touch");
+                    if(this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
+                    if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
+                    this.scene.restart();
+                } else {
+                    console.log("❌ Game state does not allow restart");
+                }
+            });
+        } else {
+            console.error("❌ gameOverRestartButtonMobile not found in DOM!");
         }
 
         if (this.domElements.gameOverMenuButtonMobile) {
             this.domElements.gameOverMenuButtonMobile.addEventListener('click', () => {
-                if (scene.gameState.gameOver || scene.gameState.gameComplete) {
-                    if (scene.sceneTransitioning) return; // Prevent multiple transitions
-                    scene.sceneTransitioning = true;
-                    if(scene.domElements.gameOverScreen) scene.domElements.gameOverScreen.style.display = 'none';
-                    if (scene.domElements.instructions) scene.domElements.instructions.style.display = 'none';
-                    scene.scene.start("SceneSwitcher");
+                console.log("🏠 MENU BUTTON CLICKED");
+                if (this.gameState.gameOver || this.gameState.gameComplete) {
+                    console.log("🏠 Game state allows menu - proceeding");
+                    if (this.sceneTransitioning) {
+                        console.log("⚠️ Already transitioning, ignoring menu button");
+                        return;
+                    }
+                    this.sceneTransitioning = true;
+                    console.log("🏠 Going to menu via button");
+                    if(this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
+                    if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
+                    this.scene.start("SceneSwitcher");
+                } else {
+                    console.log("❌ Game state does not allow menu");
                 }
             });
+            
+            this.domElements.gameOverMenuButtonMobile.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                console.log("🏠 MENU BUTTON TOUCHED");
+                if (this.gameState.gameOver || this.gameState.gameComplete) {
+                    console.log("🏠 Game state allows menu - proceeding");
+                    if (this.sceneTransitioning) {
+                        console.log("⚠️ Already transitioning, ignoring menu touch");
+                        return;
+                    }
+                    this.sceneTransitioning = true;
+                    console.log("🏠 Going to menu via touch");
+                    if(this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
+                    if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
+                    this.scene.start("SceneSwitcher");
+                } else {
+                    console.log("❌ Game state does not allow menu");
+                }
+            });
+        } else {
+            console.error("❌ gameOverMenuButtonMobile not found in DOM!");
         }
     }    setupPhysics() {
         // Player collides with platforms
@@ -826,31 +896,63 @@ class tower1 extends Phaser.Scene {
             this.gameState.score += Math.floor(heightGain / 10);
             this.lastGroundHeight = this.gameState.currentHeight;
         }
-    }
-
-    triggerGameOver(reason) {
+    }    triggerGameOver(reason) {
+        console.log("💀 === TOWER GAME OVER ===");
+        console.log("Reason:", reason);
+        
         this.gameState.gameOver = true;
         this.physics.pause();
         
+        // CRITICAL: Immediately cut off all player input to prevent auto-restart
+        this.pointerJustDown = false;
+        this.pointerIsDown = false;
+        
         if (this.timeTimer) {
             this.timeTimer.remove();
+            console.log("🕒 Timer stopped");
         }
         
         if (this.domElements.gameOverScreen) {
             this.domElements.gameOverReason.textContent = reason;
             this.domElements.gameOverScore.textContent = `Final Score: ${this.gameState.score}`;
             this.domElements.gameOverScreen.style.display = 'block';
+            console.log("📺 Game Over screen displayed");
+            console.log("🎮 Final score:", this.gameState.score);
+        } else {
+            console.error("❌ gameOverScreen element not found!");
+        }
+        
+        // Check if restart/menu buttons exist
+        if (this.domElements.gameOverRestartButtonMobile) {
+            console.log("✅ Restart button found");
+        } else {
+            console.error("❌ Restart button not found!");
+        }
+        
+        if (this.domElements.gameOverMenuButtonMobile) {
+            console.log("✅ Menu button found");
+        } else {
+            console.error("❌ Menu button not found!");
         }
         
         this.cameras.main.shake(500, 0.02);
-        this.player.setTint(0xff0000);    }
-
-    completeStage(reason) {
+        this.player.setTint(0xff0000);
+        
+        console.log("💀 Game over setup complete - R key and buttons should work");
+    }completeStage(reason) {
+        console.log("🎉 === TOWER STAGE COMPLETION ===");
+        console.log("Reason:", reason);
+        
         this.gameState.gameComplete = true;
         this.gameState.completionReason = reason;
         
+        // CRITICAL: Immediately cut off all player input to prevent interference
+        this.pointerJustDown = false;
+        this.pointerIsDown = false;
+        
         if (this.timeTimer) {
             this.timeTimer.remove();
+            console.log("🕒 Timer stopped");
         }
         
         // Calculate completion bonuses
@@ -861,39 +963,63 @@ class tower1 extends Phaser.Scene {
         this.gameState.score += this.gameState.timeBonus + wallJumpBonus + heightBonus;
         
         this.physics.pause();
+        console.log("🎮 Physics paused, score calculated:", this.gameState.score);
         
         if (this.domElements.gameOverScreen) {
             this.domElements.gameOverReason.textContent = `${reason} Stage Complete!`;
             this.domElements.gameOverScore.textContent = `Final Score: ${this.gameState.score}`;
             this.domElements.gameOverScreen.style.display = 'block';
+            console.log("📺 Completion screen displayed");
+        } else {
+            console.error("❌ gameOverScreen element not found!");
         }
-        
-        this.cameras.main.flash(500, 0, 255, 0);
+          this.cameras.main.flash(500, 0, 255, 0);
         this.player.setTint(0x00ff00);
         
-        console.log("🎉 Tower completed! Moving to next stage...");
-        
-        // Transition to Stage2 after a delay
+        console.log("🎉 Tower completed! Setting up transition to Stage2 in 3 seconds...");
+          // Transition to Stage2 after a delay - FIXED: Don't set sceneTransitioning until we actually transition
         this.time.delayedCall(3000, () => {
-            console.log("🔄 Starting automatic transition to Stage2...");
+            console.log("⏰ 3 second delay complete - starting transition to Stage2");
+            if (this.sceneTransitioning) {
+                console.log("⚠️ Scene already transitioning, aborting");
+                return;
+            }
             this.sceneTransitioning = true;
+            console.log("🔄 Starting scene transition to Stage2");
+            
             // Hide the completion screen before transitioning
             if (this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
             if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
+            
+            console.log("🚀 Calling this.scene.start('Stage2')");
             this.scene.start("Stage2");
         });
-    }update(time, delta) {        if (this.gameState.gameOver || this.gameState.gameComplete) {
-            // Game over controls
+    }    update(time, delta) {        if (this.gameState.gameOver || this.gameState.gameComplete) {
+            // CRITICAL: Reset all input flags immediately during game over to prevent auto-restart
+            this.pointerJustDown = false;
+            this.pointerIsDown = false;
+            
+            // Game over controls with debugging
             if (Phaser.Input.Keyboard.JustDown(this.keyR)) {
-                if (this.sceneTransitioning) return; // Prevent multiple transitions
+                console.log("🔄 R key pressed - attempting restart");
+                if (this.sceneTransitioning) {
+                    console.log("⚠️ Already transitioning, ignoring R key");
+                    return;
+                }
                 this.sceneTransitioning = true;
+                console.log("🔄 Setting sceneTransitioning = true, restarting scene");
                 if(this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
                 if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
                 this.scene.restart();
             }
             if (Phaser.Input.Keyboard.JustDown(this.keyESC)) {
-                if (this.sceneTransitioning) return; // Prevent multiple transitions
+                console.log("🏠 ESC key pressed - returning to menu");
+                if (this.sceneTransitioning) {
+                    console.log("⚠️ Already transitioning, ignoring ESC key");
+                    return;
+                }
                 this.sceneTransitioning = true;
+                console.log("🏠 Setting sceneTransitioning = true, going to SceneSwitcher");
                 if(this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
                 if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
                 this.scene.start("SceneSwitcher");
@@ -907,13 +1033,15 @@ class tower1 extends Phaser.Scene {
             if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
             this.scene.start("SceneSwitcher");
             return;
-        }          // Handle jump input - normal gameplay should always work
-        if (Phaser.Input.Keyboard.JustDown(this.spaceKey) || this.pointerJustDown) {
+        }        // Handle jump input - CRITICAL: Block ALL input during game over/complete states
+        if ((Phaser.Input.Keyboard.JustDown(this.spaceKey) || this.pointerJustDown) && 
+            !this.gameState.gameOver && !this.gameState.gameComplete) {
             this.handleJump();
         }
 
-        // Handle dash input (from Stage1/2) - normal gameplay should always work
-        if (Phaser.Input.Keyboard.JustDown(this.shiftKey) && this.dashReady) {
+        // Handle dash input (from Stage1/2) - CRITICAL: Block during game over states
+        if (Phaser.Input.Keyboard.JustDown(this.shiftKey) && this.dashReady && 
+            !this.gameState.gameOver && !this.gameState.gameComplete) {
             this.doDash();
             this.dashReady = false;
             this.lastDashTime = this.time.now;
@@ -923,8 +1051,9 @@ class tower1 extends Phaser.Scene {
         if (!this.shiftKey.isDown && (this.time.now - this.lastDashTime > window.tower1Options.dashCooldown)) {
             this.dashReady = true;
         }
-          // Variable jump height when holding jump (only if not diving)
-        if (this.isJumping && !this.isDiving && (this.spaceKey.isDown || this.pointerIsDown)) {
+          // Variable jump height when holding jump (only if not diving) - CRITICAL: Block during game over
+        if (this.isJumping && !this.isDiving && (this.spaceKey.isDown || this.pointerIsDown) && 
+            !this.gameState.gameOver && !this.gameState.gameComplete) {
             this.jumpHoldTime += delta;
             if (this.jumpHoldTime < window.tower1Options.maxJumpHold) {
                 const scaledJumpForce = window.tower1Options.jumpHoldForce * (delta / 16.67);

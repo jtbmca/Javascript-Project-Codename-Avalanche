@@ -41,9 +41,7 @@ class AccessibilityManager {
             attributes: true,
             attributeFilter: ['style']
         });
-    }
-
-    // Handle navigation when game over screen is active
+    }    // Handle navigation when game over screen is active
     handleGameOverNavigation(e) {
         const restartBtn = document.getElementById('gameOverRestartButtonMobile');
         const menuBtn = document.getElementById('gameOverMenuButtonMobile');
@@ -61,9 +59,18 @@ class AccessibilityManager {
                 this.toggleGameOverFocus();
                 break;
             case 'Enter':
-            case 'Space':
                 e.preventDefault();
                 this.activateCurrentGameOverButton();
+                break;
+            case 'KeyR':
+                // Direct restart key - always trigger restart button
+                e.preventDefault();
+                restartBtn.click();
+                break;
+            case 'Escape':
+                // Direct menu key - always trigger menu button
+                e.preventDefault();
+                menuBtn.click();
                 break;
         }
     }
