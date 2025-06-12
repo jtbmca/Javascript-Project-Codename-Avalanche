@@ -2,14 +2,18 @@ class SceneSwitcher extends Phaser.Scene {
     constructor() {
         super({ key: "SceneSwitcher" });
         this.sceneTransitioning = false; // Prevent multiple simultaneous scene starts
-    }
-
-    create() {
+    }    create() {
         // Reset transition flag when entering scene switcher
         this.sceneTransitioning = false;
         
         // Ensure all DOM elements are hidden when entering scene switcher
         this.hideAllUI();
+        
+        // Clear any existing display objects to prevent overlap issues
+        this.children.removeAll();
+        
+        // Set a consistent background color to ensure proper rendering
+        this.cameras.main.setBackgroundColor('#000000');
         
         // Center the text on screen
         const centerX = this.cameras.main.centerX;
@@ -28,8 +32,7 @@ class SceneSwitcher extends Phaser.Scene {
             align: 'center',
             lineSpacing: 10
         }).setOrigin(0.5);
-        
-        // Add additional help text
+          // Add additional help text
         this.add.text(centerX, centerY + 100, "Press ESC from any stage to return here", {
             font: "18px Arial",
             fill: "#aaa",
@@ -48,22 +51,30 @@ class SceneSwitcher extends Phaser.Scene {
         this.keyNumpad2 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.NUMPAD_TWO);
         this.keyNumpad3 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.NUMPAD_THREE);
 
-        this.keyESC = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
-
-        // --- MOBILE FRIENDLY BUTTONS ---
+        this.keyESC = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);        // --- MOBILE FRIENDLY BUTTONS ---
         const buttonConfig = {
-            font: "32px Arial",
+            font: "24px Arial",
             fill: "#222",
-            backgroundColor: "#fff",
-            padding: { x: 20, y: 10 }
-        };        // Stage 1 Button
-        this.add.text(centerX, centerY + 160, "Stage 1", buttonConfig)
+            backgroundColor: "#ffffff",
+            padding: { x: 15, y: 8 },
+            stroke: "#000000",
+            strokeThickness: 2
+        };
+        
+        // Position buttons further down to avoid overlap with instructions
+        const buttonStartY = centerY + 180;
+        const buttonSpacing = 60;
+        
+        // Stage 1 Button
+        const stage1Button = this.add.text(centerX, buttonStartY, "Stage 1", buttonConfig)
             .setOrigin(0.5)
             .setInteractive()
             .on('pointerdown', () => {
                 this.startScene("Stage1");
-            });        // Dungeon 1 Button
-        this.add.text(centerX, centerY + 210, "Tower 1", buttonConfig)
+            });
+            
+        // Tower 1 Button  
+        const tower1Button = this.add.text(centerX, buttonStartY + buttonSpacing, "Tower 1", buttonConfig)
             .setOrigin(0.5)
             .setInteractive()
             .on('pointerdown', () => {
@@ -71,12 +82,22 @@ class SceneSwitcher extends Phaser.Scene {
             });
 
         // Stage 2 Button
-        this.add.text(centerX, centerY + 260, "Stage 2", buttonConfig)
+        const stage2Button = this.add.text(centerX, buttonStartY + (buttonSpacing * 2), "Stage 2", buttonConfig)
             .setOrigin(0.5)
             .setInteractive()
             .on('pointerdown', () => {
                 this.startScene("Stage2");
             });
+            
+        // Add hover effects for better interaction feedback
+        [stage1Button, tower1Button, stage2Button].forEach(button => {
+            button.on('pointerover', () => {
+                button.setStyle({ backgroundColor: "#cccccc" });
+            });
+            button.on('pointerout', () => {
+                button.setStyle({ backgroundColor: "#ffffff" });
+            });
+        });
     }    update() {
         // Check for key presses in update loop for more reliable detection
         if (Phaser.Input.Keyboard.JustDown(this.key1) || Phaser.Input.Keyboard.JustDown(this.keyNumpad1)) {
