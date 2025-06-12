@@ -64,10 +64,7 @@ class Stage2 extends Phaser.Scene {
             collisions: 0,
             completionReason: "",
             lastBuildingHeight: this.sys.game.config.height * 0.8 // Track building heights
-        };
-
-        // Initialize arrays for obstacles and buildings
-        this.obstacles = [];
+        };        // Initialize arrays for buildings (obstacles are now managed per building)
         this.buildings = [];
         this.pitfalls = [];
 
@@ -76,13 +73,11 @@ class Stage2 extends Phaser.Scene {
         
         // Make on-screen buttons visible
         if (this.domElements.jumpButton) this.domElements.jumpButton.style.display = 'block';
-        if (this.domElements.dashButton) this.domElements.dashButton.style.display = 'block';
-
-        // Setup game elements
+        if (this.domElements.dashButton) this.domElements.dashButton.style.display = 'block';        // Setup game elements - IMPORTANT: Setup obstacles BEFORE buildings since buildings need the obstacle pool
+        this.setupObstacles();
         this.initializeBuildings();
         this.setupPlayer();
         this.setupMissile();
-        this.setupObstacles();
         this.setupInput();
         this.setupPhysics();
         
@@ -206,32 +201,52 @@ class Stage2 extends Phaser.Scene {
             removeCallback: function(building) {
                 building.scene.buildingGroup.add(building);
             }
-        });
-
-        // Create initial buildings
+        });        // Create initial buildings
         this.createInitialRooftops();
-        this.originY = this.gameState.lastBuildingHeight - 50;
-    }
-
-    createInitialRooftops() {
+        // Set originY to match the first (landing) platform exactly
+        this.originY = this.landingPlatformY - 50;
+    }    createInitialRooftops() {
         const screenWidth = this.sys.game.config.width;
         let currentX = 0;
         
-        // Create 5 initial buildings with gaps
-        for (let i = 0; i < 5; i++) {
+        // Create the guaranteed landing platform first
+        // This ensures player always has a safe landing spot after the cinematic
+        const landingPlatformWidth = 600; // Even wider for 100% reliability
+        const landingPlatformHeight = this.calculateNextBuildingHeight(true);
+        
+        // Store the landing platform height for precise player positioning
+        this.landingPlatformY = landingPlatformHeight;
+        
+        // Position the landing platform to guarantee player catch
+        // Make it wide enough and positioned to ensure 100% catch rate
+        const playerStartX = window.stage2Options.playerStartPosition;
+        const landingStartX = Math.max(0, playerStartX - 200); // Start even further left
+        const landingEndX = landingStartX + landingPlatformWidth;
+        
+        // Ensure the landing platform extends well past the player start position
+        if (landingEndX < playerStartX + 100) {
+            const extendedWidth = landingPlatformWidth + 200;
+            this.addBuilding(landingStartX, landingPlatformHeight, extendedWidth);
+            currentX = landingStartX + extendedWidth;
+        } else {
+            this.addBuilding(landingStartX, landingPlatformHeight, landingPlatformWidth);
+            currentX = landingEndX;
+        }
+        
+        // Create 4 additional buildings with normal random gaps after the landing platform
+        for (let i = 1; i < 5; i++) {
+            // Add gap before next building
+            const gapSize = Phaser.Math.Between(
+                window.stage2Options.minBuildingGap, 
+                window.stage2Options.maxBuildingGap
+            );
+            currentX += gapSize;
+            
             const buildingWidth = Phaser.Math.Between(200, 400);
-            const buildingHeight = this.calculateNextBuildingHeight(i === 0);
+            const buildingHeight = this.calculateNextBuildingHeight(false);
             
             this.addBuilding(currentX, buildingHeight, buildingWidth);
             currentX += buildingWidth;
-              // Add gap between buildings (except for the last one)
-            if (i < 4) {
-                const gapSize = Phaser.Math.Between(
-                    window.stage2Options.minBuildingGap, 
-                    window.stage2Options.maxBuildingGap
-                );
-                currentX += gapSize;
-            }
         }
     }
 
@@ -252,9 +267,7 @@ class Stage2 extends Phaser.Scene {
         
         this.gameState.lastBuildingHeight = Phaser.Math.Clamp(newHeight, minHeight, maxHeight);
         return this.gameState.lastBuildingHeight;
-    }
-
-    addBuilding(xPosition, yPosition, width) {
+    }    addBuilding(xPosition, yPosition, width) {
         let building;
         if (this.buildingPool.getLength()) {
             building = this.buildingPool.getFirst();
@@ -273,12 +286,24 @@ class Stage2 extends Phaser.Scene {
         building.setVelocityX(this.getAdjustedSpeed() * -1);
         building.setTint(0x666666); // Gray buildings for urban feel
         
+        // Initialize building's obstacle array if it doesn't exist
+        if (!building.obstacles) {
+            building.obstacles = [];
+        }
+        
+        // Randomly add obstacles to this building
+        this.addObstaclesToBuilding(building);
+        
         return building;
-    }    // Setup player for rooftop running
+    }// Setup player for rooftop running
     setupPlayer() {
+        // Position player to land exactly on the landing platform
+        // Use a slight offset above the platform to ensure clean landing
+        const playerStartY = this.landingPlatformY - 60; // Start slightly above platform
+        
         this.player = this.physics.add.sprite(
             window.stage2Options.playerStartPosition,
-            this.originY,
+            playerStartY,
             "player"
         );
         this.player.setGravityY(window.stage2Options.playerGravity);
@@ -288,9 +313,7 @@ class Stage2 extends Phaser.Scene {
         this.jumpBufferDuration = 150;
         
         this.player.setTint(0x0088ff); // Jayceon's blue color
-    }
-
-    // Setup rooftop obstacles (air conditioners, satellite dishes, etc.)
+    }    // Setup rooftop obstacles (air conditioners, satellite dishes, etc.)
     setupObstacles() {
         // Create different types of obstacles
         this.obstacleTypes = [
@@ -300,34 +323,89 @@ class Stage2 extends Phaser.Scene {
             { tint: 0x444444, scale: 1.0, name: "Vent" }         // Dark vent
         ];
 
-        // Initialize obstacle sprites
-        for (let i = 0; i < 6; i++) {
-            const obstacleType = this.obstacleTypes[i % this.obstacleTypes.length];
-            const obstacle = this.physics.add.sprite(
-                this.sys.game.config.width + 200 + (i * 300),
-                this.originY,
-                "obstacle"
-            );
+        // Create a pool of obstacle sprites for reuse
+        this.obstaclePool = [];
+        for (let i = 0; i < 12; i++) {
+            const obstacle = this.physics.add.sprite(-1000, -1000, "obstacle");
             obstacle.setImmovable(true);
-            obstacle.setTint(obstacleType.tint);
-            obstacle.setScale(obstacleType.scale);
-            obstacle.obstacleType = obstacleType.name;
+            obstacle.setVisible(false);
+            obstacle.setActive(false);
             obstacle.isHit = false;
-            
-            this.obstacles.push(obstacle);
+            obstacle.parentBuilding = null;
+            this.obstaclePool.push(obstacle);
         }
-
-        this.updateObstacleSpeeds();
     }
 
-    updateObstacleSpeeds() {
-        const baseSpeed = this.getAdjustedSpeed();
+    // Add obstacles to a building, tied to its movement
+    addObstaclesToBuilding(building) {
+        const spawnChance = this.getDynamicObstacleSpawnChance();
         
-        this.obstacles.forEach((obstacle, index) => {
-            // Slight speed variation for obstacles
-            const speedVariation = 0.95 + (Math.random() * 0.1);
-            obstacle.setVelocityX(baseSpeed * speedVariation * -1);
+        // Don't add obstacles to the landing platform (first building)
+        if (building.x < this.sys.game.config.width * 0.3) {
+            return;
+        }
+        
+        if (Math.random() < spawnChance) {
+            // Try to get an obstacle from the pool
+            const availableObstacle = this.obstaclePool.find(obs => !obs.active);
+            
+            if (availableObstacle) {
+                // Position obstacle on top of building
+                const offsetX = Phaser.Math.Between(-building.displayWidth/3, building.displayWidth/3);
+                availableObstacle.x = building.x + offsetX;
+                availableObstacle.y = building.y - 50;
+                availableObstacle.setActive(true);
+                availableObstacle.setVisible(true);
+                
+                // Set obstacle properties
+                const obstacleType = Phaser.Utils.Array.GetRandom(this.obstacleTypes);
+                availableObstacle.setTint(obstacleType.tint);
+                availableObstacle.setScale(obstacleType.scale);
+                availableObstacle.obstacleType = obstacleType.name;
+                availableObstacle.isHit = false;
+                
+                // Tie obstacle to building movement
+                availableObstacle.parentBuilding = building;
+                availableObstacle.setVelocityX(building.body.velocity.x);
+                
+                // Store reference in building
+                building.obstacles.push(availableObstacle);
+            }
+        }
+    }
+
+    // Update obstacle positions to stay with their parent buildings
+    updateObstaclePositions() {
+        this.obstaclePool.forEach(obstacle => {
+            if (obstacle.active && obstacle.parentBuilding) {
+                // Keep obstacle moving with its parent building
+                obstacle.setVelocityX(obstacle.parentBuilding.body.velocity.x);
+                
+                // If parent building is destroyed or off-screen, clean up obstacle
+                if (!obstacle.parentBuilding.active || obstacle.parentBuilding.x < -300) {
+                    this.cleanupObstacle(obstacle);
+                }
+            }
         });
+    }
+
+    // Clean up obstacle and return it to pool
+    cleanupObstacle(obstacle) {
+        obstacle.setActive(false);
+        obstacle.setVisible(false);
+        obstacle.x = -1000;
+        obstacle.y = -1000;
+        obstacle.setVelocityX(0);
+        obstacle.isHit = false;
+        
+        // Remove from parent building's obstacle array
+        if (obstacle.parentBuilding && obstacle.parentBuilding.obstacles) {
+            const index = obstacle.parentBuilding.obstacles.indexOf(obstacle);
+            if (index > -1) {
+                obstacle.parentBuilding.obstacles.splice(index, 1);
+            }
+        }
+          obstacle.parentBuilding = null;
     }
 
     setupInput() {
@@ -463,22 +541,21 @@ class Stage2 extends Phaser.Scene {
             if (scene.domElements.jumpButton) scene.domElements.jumpButton.style.display = 'none';
         };
         window.addEventListener('keydown', this.hideOnScreenButtonsHandler);
-    }
-
-    setupPhysics() {
+    }    setupPhysics() {
         // Player collision with buildings
         this.physics.add.collider(this.player, this.buildingGroup, (player, building) => {
             this.playerOnBuilding = true;
         });
         
-        // Player collision with obstacles
-        this.obstacles.forEach(obstacle => {
+        // Player collision with obstacles - check all obstacles in pool
+        this.obstaclePool.forEach(obstacle => {
             this.physics.add.overlap(this.player, obstacle, this.hitObstacle, null, this);
         });
-    }
-
-    // Collision with rooftop obstacles
+    }    // Collision with rooftop obstacles
     hitObstacle(player, obstacle) {
+        // Skip collision if obstacle is not active
+        if (!obstacle.active) return;
+        
         // Skip collision if player is dashing or dash jumping
         if (this.isDashing || this.dashInvulnerable) {
             console.log("🛡️ Obstacle avoided - player is dashing!");
@@ -486,7 +563,9 @@ class Stage2 extends Phaser.Scene {
             this.gameState.score += 10;
             this.gameState.obstaclesAvoided++;
             return;
-        }        if (!obstacle.isHit && this.gameState.collisionCooldown <= 0) {
+        }
+        
+        if (!obstacle.isHit && this.gameState.collisionCooldown <= 0) {
             this.gameState.momentum = Math.max(10, 
                 this.gameState.momentum - window.stage2Options.momentumLossPerCollision);
             this.gameState.collisions++;
@@ -735,50 +814,20 @@ class Stage2 extends Phaser.Scene {
         const canJump = withinWindow && !this.isDashJumping;
         
         return canJump;
-    }
-
-    updateAllSpeeds() {
+    }    updateAllSpeeds() {
         const adjustedSpeed = this.getAdjustedSpeed();
         
-        // Update building speeds
+        // Update building speeds and their obstacles
         this.buildingGroup.getChildren().forEach(building => {
             building.setVelocityX(adjustedSpeed * -1);
-        });
-        
-        // Update obstacle speeds
-        this.updateObstacleSpeeds();
-    }
-
-    // Obstacle management with rooftop-specific spawn logic
-    manageObstacles() {
-        this.obstacles.forEach((obstacle, index) => {
-            if (obstacle.x < -obstacle.displayWidth / 2) {
-                const spawnChance = this.getDynamicObstacleSpawnChance();
-                
-                if (Math.random() < spawnChance) {
-                    // Spawn obstacle on a building (not in gaps)
-                    const validBuildings = this.buildingGroup.getChildren().filter(building => 
-                        building.x > this.sys.game.config.width * 0.8
-                    );
-                    
-                    if (validBuildings.length > 0) {
-                        const randomBuilding = Phaser.Utils.Array.GetRandom(validBuildings);
-                        obstacle.x = randomBuilding.x + Phaser.Math.Between(-50, 50);
-                        obstacle.y = randomBuilding.y - 50; // Place on top of building
-                        
-                        // Randomize obstacle type
-                        const obstacleType = Phaser.Utils.Array.GetRandom(this.obstacleTypes);
-                        obstacle.setTint(obstacleType.tint);
-                        obstacle.setScale(obstacleType.scale);
-                        obstacle.obstacleType = obstacleType.name;
-                    } else {
-                        // No valid buildings, spawn far away
-                        obstacle.x = this.sys.game.config.width + 2000;
+            
+            // Update any obstacles on this building
+            if (building.obstacles) {
+                building.obstacles.forEach(obstacle => {
+                    if (obstacle.active) {
+                        obstacle.setVelocityX(adjustedSpeed * -1);
                     }
-                } else {
-                    obstacle.x = this.sys.game.config.width + 1000 + (index * 300);
-                    obstacle.y = this.originY; // Default position
-                }
+                });
             }
         });
     }    getDynamicObstacleSpawnChance() {
@@ -792,9 +841,7 @@ class Stage2 extends Phaser.Scene {
         } else {
             return baseChance; // Base density early game
         }
-    }
-
-    // Building management - create new buildings as old ones scroll off
+    }// Building management - create new buildings as old ones scroll off
     manageBuildings() {
         let rightmostX = -Infinity;
         
@@ -803,6 +850,14 @@ class Stage2 extends Phaser.Scene {
             rightmostX = Math.max(rightmostX, building.x + building.displayWidth / 2);
             
             if (building.x + building.displayWidth / 2 < -200) {
+                // Clean up any obstacles on this building before destroying it
+                if (building.obstacles) {
+                    building.obstacles.forEach(obstacle => {
+                        this.cleanupObstacle(obstacle);
+                    });
+                    building.obstacles = [];
+                }
+                
                 this.buildingGroup.killAndHide(building);
                 this.buildingGroup.remove(building);
             }
@@ -974,10 +1029,8 @@ class Stage2 extends Phaser.Scene {
             this.gameState.momentum = Math.min(100, 
                 this.gameState.momentum + window.gameOptions.momentumRecoveryRate);
             this.updateAllSpeeds();
-        }
-
-        // Manage obstacles and buildings
-        this.manageObstacles();
+        }        // Manage obstacles and buildings
+        this.updateObstaclePositions();
         this.manageBuildings();
 
         // Jump state management
@@ -1037,14 +1090,26 @@ class Stage2 extends Phaser.Scene {
         this.updateUI();
         this.pointerJustDown = false;
     }    shutdown() {
-        // Clean up obstacles
-        if (this.obstacles) {
-            this.obstacles.forEach(obstacle => {
+        // Clean up obstacle pool
+        if (this.obstaclePool) {
+            this.obstaclePool.forEach(obstacle => {
                 if (obstacle && obstacle.active) {
                     obstacle.destroy();
                 }
             });
-            this.obstacles = [];
+            this.obstaclePool = [];
+        }
+        
+        // Clean up building obstacles
+        if (this.buildingGroup) {
+            this.buildingGroup.getChildren().forEach(building => {
+                if (building.obstacles) {
+                    building.obstacles.forEach(obstacle => {
+                        this.cleanupObstacle(obstacle);
+                    });
+                    building.obstacles = [];
+                }
+            });
         }
         
         // Clean up event handlers

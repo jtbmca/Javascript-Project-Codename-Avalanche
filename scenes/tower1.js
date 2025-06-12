@@ -209,7 +209,8 @@ class tower1 extends Phaser.Scene {
         if (!this.domElements.scoreDisplay) return;
 
         this.domElements.scoreDisplay.textContent = `Score: ${this.gameState.score}`;
-        this.domElements.levelDisplay.textContent = `Height: ${Math.round(this.gameState.stageProgress)}%`;        this.domElements.speedDisplay.textContent = `Wall Jumps: ${this.gameState.wallJumpsPerformed}`;
+        this.domElements.levelDisplay.textContent = `Height: ${Math.round(this.gameState.stageProgress)}%`;
+        this.domElements.speedDisplay.textContent = `Wall Jumps: ${this.gameState.wallJumpsPerformed}`;
           // Debug timer display
         if (this.domElements.timeDisplay) {
             this.domElements.timeDisplay.textContent = `Time: ${this.gameState.timeRemaining}s`;
@@ -227,7 +228,8 @@ class tower1 extends Phaser.Scene {
             stateColor = '#ffaa00';
         } else if (this.isDashJumping) {
             stateText = 'MEGA JUMP';
-            stateColor = '#ffff00';        } else if (this.isDashing) {
+            stateColor = '#ffff00';
+        } else if (this.isDashing) {
             stateText = 'DASHING';
             stateColor = '#00ffff';
         } else if (this.hasMomentumBoost) {
@@ -268,9 +270,7 @@ class tower1 extends Phaser.Scene {
         if (this.gameState.timeRemaining <= 0) {
             this.triggerGameOver("Time's up! The missile hit the city!");
         }
-    }
-
-    initializeTower() {
+    }    initializeTower() {
         console.log("🏗️ Creating tower structure...");
         
         // Create walls on left and right sides
@@ -279,60 +279,67 @@ class tower1 extends Phaser.Scene {
         this.platforms = this.physics.add.staticGroup();
           const towerHeight = window.tower1Options.stageTargetHeight + this.sys.game.config.height;
         const wallThickness = 50;
+        const towerWidth = window.tower1Options.towerWidth;
+        const towerCenterX = this.sys.game.config.width / 2;
+        const leftWallX = towerCenterX - (towerWidth / 2);
+        const rightWallX = towerCenterX + (towerWidth / 2);
         
         console.log("Building walls with height:", towerHeight, "thickness:", wallThickness);
+        console.log("Tower width:", towerWidth, "Center X:", towerCenterX);
+        console.log("Left wall X:", leftWallX, "Right wall X:", rightWallX);
         
         // Create left wall segments
         for (let y = this.sys.game.config.height; y >= -window.tower1Options.stageTargetHeight; y -= 100) {
-            let leftWallPiece = this.add.rectangle(wallThickness / 2, y, wallThickness, 100, 0x404040);
+            let leftWallPiece = this.add.rectangle(leftWallX, y, wallThickness, 100, 0x404040);
             this.physics.add.existing(leftWallPiece, true);
             this.leftWall.add(leftWallPiece);
         }
           // Create right wall segments
         for (let y = this.sys.game.config.height; y >= -window.tower1Options.stageTargetHeight; y -= 100) {
-            let rightWallPiece = this.add.rectangle(this.sys.game.config.width - wallThickness / 2, y, wallThickness, 100, 0x404040);
+            let rightWallPiece = this.add.rectangle(rightWallX, y, wallThickness, 100, 0x404040);
             this.physics.add.existing(rightWallPiece, true);
             this.rightWall.add(rightWallPiece);
         }
         
         // Create floor
-        let floor = this.add.rectangle(this.sys.game.config.width / 2, this.sys.game.config.height - 25, this.sys.game.config.width, 50, 0x606060);
+        let floor = this.add.rectangle(towerCenterX, this.sys.game.config.height - 25, towerWidth, 50, 0x606060);
         this.physics.add.existing(floor, true);
         this.platforms.add(floor);
         
         // Create ceiling (goal)
-        let ceiling = this.add.rectangle(this.sys.game.config.width / 2, -window.tower1Options.stageTargetHeight + 25, this.sys.game.config.width - 100, 50, 0x00ff00);
-        this.physics.add.existing(ceiling, true);
+        let ceiling = this.add.rectangle(towerCenterX, -window.tower1Options.stageTargetHeight + 25, towerWidth - 100, 50, 0x00ff00);        this.physics.add.existing(ceiling, true);
         this.platforms.add(ceiling);
-        ceiling.isGoal = true;        // STATIC PLATFORM LAYOUT - No procedural generation
+        ceiling.isGoal = true;        
+        
+        // STATIC PLATFORM LAYOUT - Now responsive to towerWidth
         // All platforms positioned for optimal wall-jumping gameplay
-        const centerX = this.sys.game.config.width / 2;
-        const gameHeight = this.sys.game.config.height;        const staticPlatforms = [
+        const gameHeight = this.sys.game.config.height;
+        const leftPlatformX = towerCenterX - (towerWidth / 2) + 125; // Near left wall
+        const rightPlatformX = towerCenterX + (towerWidth / 2) - 125; // Near right wall
+        
+        console.log("Platform positions - Left:", leftPlatformX, "Right:", rightPlatformX, "Center:", towerCenterX);
+        
+        const staticPlatforms = [
             // Starting area platforms
-            { x: 150, y: gameHeight - 150, width: 240, color: 0x808080, comment: "Left start platform" }, // 200 * 1.2 = 240
-            // { x: centerX, y: gameHeight - 200, width: 192, color: 0x606060, comment: "Center safety platform" }, // 160 * 1.2 = 192
+            { x: leftPlatformX, y: gameHeight - 150, width: 240, color: 0x808080, comment: "Left start platform" },
             
             // Main climbing route - alternating sides (CORE ROUTE ONLY)
-            // Left platforms: x=150 (near left wall at x=25)
-            // Right platforms: x=1186 (near right wall at x=1311, game width=1336)
-            { x: 1000, y: gameHeight - 275, width: 600, color: 0x808080, comment: "Right platform 1" }, // 200 * 1.2 = 240
-            { x: 150, y: gameHeight - 450, width: 240, color: 0x808080, comment: "Left platform 1" }, // 200 * 1.2 = 240
-            { x: 1000, y: gameHeight - 500, width: 500, color: 0x808080, comment: "Right platform 2" }, // 180 * 1.2 = 216
-            { x: 150, y: gameHeight - 750, width: 216, color: 0x808080, comment: "Left platform 2" }, // 180 * 1.2 = 216
-            { x: 1000, y: gameHeight - 800, width: 500, color: 0x808080, comment: "Right platform 3" }, // 160 * 1.2 = 192            { x: 150, y: gameHeight - 1050, width: 192, color: 0x808080, comment: "Left platform 3" }, // 160 * 1.2 = 192
-            { x: 1000, y: gameHeight - 1000, width: 500, color: 0x808080, comment: "Right platform 4" }, // 140 * 1.2 = 168
+            { x: rightPlatformX, y: gameHeight - 275, width: 240, color: 0x808080, comment: "Right platform 1" },
+            { x: leftPlatformX, y: gameHeight - 450, width: 240, color: 0x808080, comment: "Left platform 1" },
+            { x: rightPlatformX, y: gameHeight - 500, width: 216, color: 0x808080, comment: "Right platform 2" },
+            { x: leftPlatformX, y: gameHeight - 750, width: 216, color: 0x808080, comment: "Left platform 2" },
+            { x: rightPlatformX, y: gameHeight - 800, width: 192, color: 0x808080, comment: "Right platform 3" },
+            { x: leftPlatformX, y: gameHeight - 1050, width: 192, color: 0x808080, comment: "Left platform 3" },
+            { x: rightPlatformX, y: gameHeight - 1000, width: 168, color: 0x808080, comment: "Right platform 4" },
             
             // EXTENDED UPPER CLIMBING SECTION - Reaching 90% of tower height (~1080 pixels)
-            { x: 150, y: gameHeight - 1200, width: 180, color: 0x808080, comment: "Left platform 4" }, // Continue alternating pattern
-            { x: 1000, y: gameHeight - 1150, width: 450, color: 0x808080, comment: "Right platform 5" }, // Slightly smaller platforms for difficulty
-            { x: 150, y: gameHeight - 1350, width: 160, color: 0x808080, comment: "Left platform 5" }, // Approaching ceiling
-            { x: 900, y: gameHeight - 1300, width: 400, color: 0x808080, comment: "Final right platform" }, // Near 90% height
+            { x: leftPlatformX, y: gameHeight - 1200, width: 180, color: 0x808080, comment: "Left platform 4" },
+            { x: rightPlatformX, y: gameHeight - 1150, width: 150, color: 0x808080, comment: "Right platform 5" },
+            { x: leftPlatformX, y: gameHeight - 1350, width: 160, color: 0x808080, comment: "Left platform 5" },
+            { x: rightPlatformX, y: gameHeight - 1300, width: 140, color: 0x808080, comment: "Final right platform" },
             
             // Optional rest platform near the top for strategy
-            // { x: centerX, y: gameHeight - 1100, width: 150, color: 0x606060, comment: "Upper rest platform" },
-            
-            // Strategic helper platforms - small stepping stones
-            // { x: centerX - 80, y: gameHeight - 375, width: 100, color: 0x707070, comment: "Helper 1" },
+            // { x: towerCenterX, y: gameHeight - 1100, width: 150, color: 0x606060, comment: "Upper rest platform" },
             // { x: centerX + 80, y: gameHeight - 675, width: 100, color: 0x707070, comment: "Helper 2" },
             // { x: centerX - 60, y: gameHeight - 1025, width: 90, color: 0x707070, comment: "Helper 3" },
         ];
@@ -348,10 +355,17 @@ class tower1 extends Phaser.Scene {
         console.log("🏗️ Tower created with", this.platforms.children.entries.length, "platforms");
         console.log("🧱 Left wall pieces:", this.leftWall.children.entries.length);
         console.log("🧱 Right wall pieces:", this.rightWall.children.entries.length);    }    setupPlayer() {
-        // Create player sprite - animations will be handled differently
+        // Calculate position for first left platform
+        const towerWidth = window.tower1Options.towerWidth;
+        const towerCenterX = this.sys.game.config.width / 2;
+        const leftPlatformX = towerCenterX - (towerWidth / 2) + 125; // Same as platform calculation
+        const gameHeight = this.sys.game.config.height;
+        const leftStartPlatformY = gameHeight - 150; // First left platform Y position
+        
+        // Create player sprite - positioned on top of first left platform
         this.player = this.physics.add.sprite(
-            window.tower1Options.playerStartPosition,
-            this.sys.game.config.height - window.tower1Options.playerStartHeight,
+            leftPlatformX,  // X: Center of first left platform
+            leftStartPlatformY - 40,  // Y: Above the platform (platform top - player height)
             "player"
         );
         this.player.setGravityY(window.tower1Options.playerGravity);
@@ -362,7 +376,8 @@ class tower1 extends Phaser.Scene {
         this.player.body.setMaxVelocity(400, 600);
         
         console.log("👤 Player created at:", this.player.x, this.player.y);
-    }    setupInput() {
+        console.log("👤 Positioned on first left platform at X:", leftPlatformX, "Y:", leftStartPlatformY - 40);
+    }setupInput() {
         console.log("⌨️ === SETTING UP TOWER INPUT ===");
         
         this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
