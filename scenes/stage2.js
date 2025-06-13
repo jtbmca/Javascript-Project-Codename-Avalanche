@@ -34,17 +34,47 @@ class Stage2 extends Phaser.Scene {
         super("Stage2");
         this.hideOnScreenButtonsHandler = null;
         this.sceneTransitioning = false; // Prevent multiple scene starts
-    }
-
-    preload() {
+    }    preload() {
         this.load.image("building", "./assets/sprites/platformb.png");
-        this.load.image("player", "./assets/sprites/Jaycean.png");
+        
+        // Load the 4 sprite sheets for Jayceon's running animation
+        this.load.spritesheet('player_run1', './assets/sprites/player_run_sheet1.png', {
+            frameWidth: 192,
+            frameHeight: 108
+        });
+        this.load.spritesheet('player_run2', './assets/sprites/player_run_sheet2.png', {
+            frameWidth: 192,
+            frameHeight: 108
+        });
+        this.load.spritesheet('player_run3', './assets/sprites/player_run_sheet3.png', {
+            frameWidth: 192,
+            frameHeight: 108
+        });
+        this.load.spritesheet('player_run4', './assets/sprites/player_run_sheet4.png', {
+            frameWidth: 192,
+            frameHeight: 108
+        });
+        
         this.load.image("obstacle", "./assets/sprites/player.png");
-        this.load.image("missile", "./assets/sprites/player.png");    }
-
-    create() {
+        this.load.image("missile", "./assets/sprites/player.png");
+    }    create() {
         // Reset scene transitioning flag
         this.sceneTransitioning = false;
+        
+        // --- PLAYER ANIMATIONS SETUP ---
+        const runFrames = [
+            ...this.anims.generateFrameNumbers('player_run1', { start: 0, end: 25 }),
+            ...this.anims.generateFrameNumbers('player_run2', { start: 0, end: 25 }),
+            ...this.anims.generateFrameNumbers('player_run3', { start: 0, end: 25 }),
+            ...this.anims.generateFrameNumbers('player_run4', { start: 0, end: 25 })
+        ];
+        this.anims.create({
+            key: 'run',
+            frames: runFrames,
+            frameRate: 16,
+            repeat: -1
+        });
+        // --- END PLAYER ANIMATIONS SETUP ---
         
         // Initialize game state for rooftop running
         this.gameState = {
@@ -295,7 +325,7 @@ class Stage2 extends Phaser.Scene {
         this.addObstaclesToBuilding(building);
         
         return building;
-    }// Setup player for rooftop running
+    }    // Setup player for rooftop running
     setupPlayer() {
         // Position player to land exactly on the landing platform
         // Use a slight offset above the platform to ensure clean landing
@@ -304,7 +334,7 @@ class Stage2 extends Phaser.Scene {
         this.player = this.physics.add.sprite(
             window.stage2Options.playerStartPosition,
             playerStartY,
-            "player"
+            "player_run1"
         );
         this.player.setGravityY(window.stage2Options.playerGravity);
         this.player.setCollideWorldBounds(true, false, false, false, true);
@@ -313,7 +343,21 @@ class Stage2 extends Phaser.Scene {
         this.jumpBufferDuration = 150;
         
         this.player.setTint(0x0088ff); // Jayceon's blue color
-    }    // Setup rooftop obstacles (air conditioners, satellite dishes, etc.)
+        
+        // Wait for texture to load, then align feet to platform
+        this.player.on('texturecomplete', () => {
+            this.player.y = this.landingPlatformY - (this.player.displayHeight / 2) + 4; // +4 for fine-tuning
+            this.player.body.setSize(60, 90);
+            this.player.body.setOffset(66, 0); // y offset 0, so feet match collision box
+        });
+        // If already loaded, set immediately
+        if (this.player.texture.key) {
+            this.player.y = this.landingPlatformY - (this.player.displayHeight / 2) + 4;
+            this.player.body.setSize(60, 90);
+            this.player.body.setOffset(66, 0);
+        }
+        this.player.anims.play('run');
+    }// Setup rooftop obstacles (air conditioners, satellite dishes, etc.)
     setupObstacles() {
         // Create different types of obstacles
         this.obstacleTypes = [

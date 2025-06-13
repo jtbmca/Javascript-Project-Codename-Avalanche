@@ -49,18 +49,48 @@ class tower1 extends Phaser.Scene {
         super("tower1");
         this.hideOnScreenButtonsHandler = null;
         this.sceneTransitioning = false; // Prevent multiple scene starts
-    }
-
-    preload() {
+    }    preload() {
         this.load.image("platform", "./assets/sprites/platformb.png");
-        this.load.image("player", "./assets/sprites/Jaycean.png");
+        
+        // Load the 4 sprite sheets for Jayceon's running animation
+        this.load.spritesheet('player_run1', './assets/sprites/player_run_sheet1.png', {
+            frameWidth: 192,
+            frameHeight: 108
+        });
+        this.load.spritesheet('player_run2', './assets/sprites/player_run_sheet2.png', {
+            frameWidth: 192,
+            frameHeight: 108
+        });
+        this.load.spritesheet('player_run3', './assets/sprites/player_run_sheet3.png', {
+            frameWidth: 192,
+            frameHeight: 108
+        });
+        this.load.spritesheet('player_run4', './assets/sprites/player_run_sheet4.png', {
+            frameWidth: 192,
+            frameHeight: 108
+        });
+        
         this.load.image("wall", "./assets/sprites/platformb.png");
-    }
-
-    create() {        console.log("🏗️ Tower1 scene starting...");
+    }    create() {        console.log("🏗️ Tower1 scene starting...");
         
         // Reset scene transitioning flag
         this.sceneTransitioning = false;
+        
+        // --- PLAYER ANIMATIONS SETUP ---
+        const runFrames = [
+            ...this.anims.generateFrameNumbers('player_run1', { start: 0, end: 25 }),
+            ...this.anims.generateFrameNumbers('player_run2', { start: 0, end: 25 }),
+            ...this.anims.generateFrameNumbers('player_run3', { start: 0, end: 25 }),
+            ...this.anims.generateFrameNumbers('player_run4', { start: 0, end: 25 })
+        ];
+        this.anims.create({
+            key: 'run',
+            frames: runFrames,
+            frameRate: 16,
+            repeat: -1
+        });
+        // --- END PLAYER ANIMATIONS SETUP ---
+        
           // Initialize game state for tower climbing
         this.gameState = {
             score: 0,
@@ -366,12 +396,27 @@ class tower1 extends Phaser.Scene {
         this.player = this.physics.add.sprite(
             leftPlatformX,  // X: Center of first left platform
             leftStartPlatformY - 40,  // Y: Above the platform (platform top - player height)
-            "player"
+            "player_run1"
         );
         this.player.setGravityY(window.tower1Options.playerGravity);
         this.player.setCollideWorldBounds(true);
         this.player.setBounce(0.1);
         this.player.setTint(0x0088ff);
+        
+        // Wait for texture to load, then align feet to platform
+        this.player.on('texturecomplete', () => {
+            this.player.y = leftStartPlatformY - (this.player.displayHeight / 2) + 4; // +4 for fine-tuning
+            this.player.body.setSize(60, 90);
+            this.player.body.setOffset(66, 0); // y offset 0, so feet match collision box
+        });
+        // If already loaded, set immediately
+        if (this.player.texture.key) {
+            this.player.y = leftStartPlatformY - (this.player.displayHeight / 2) + 4;
+            this.player.body.setSize(60, 90);
+            this.player.body.setOffset(66, 0);
+        }
+        this.player.anims.play('run');
+        
           // Set player bounds to prevent going outside tower walls
         this.player.body.setMaxVelocity(400, 600);
         
