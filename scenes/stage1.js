@@ -27,13 +27,16 @@ class Stage1 extends Phaser.Scene {
         super("Stage1");
         this.hideOnScreenButtonsHandler = null;
         this.sceneTransitioning = false; // Prevent multiple scene starts
-    }
-
-    preload() {
+    }    preload() {
         this.load.image("platform", "./assets/sprites/platformb.png");
-        this.load.image("pedestrian", "./assets/sprites/player.png");
         this.load.image("missile", "./assets/sprites/player.png");
         this.load.image("sky", "./assets/sprites/sky.png");
+          // Load pedestrian sprites
+        this.load.image("pedestrian_jaycean", "./assets/sprites/Jaycean.png");
+        this.load.image("pedestrian_mandy", "./assets/sprites/Mandy.png");
+        this.load.image("pedestrian_ricky", "./assets/sprites/Ricky.png");
+        this.load.image("pedestrian_delouise", "./assets/sprites/delouise.png");
+        this.load.image("pedestrian_slob", "./assets/sprites/Slob.png");
         
         // Load player run spritesheets
         this.load.spritesheet('player_run1', './assets/sprites/player_run_sheet1.png', {
@@ -258,14 +261,12 @@ class Stage1 extends Phaser.Scene {
                     this.scene.start("SceneSwitcher");
                 }
             });
-        }
-    }
+        }    }
 
     // New missile setup
     setupMissile() {
         this.missile = this.add.sprite(0, this.sys.game.config.height * 0.15, "missile");
         this.missile.setScale(0.3);
-        this.missile.setTint(0xff4444); // Red tint to distinguish from player
         this.missile.setDepth(10); // Ensure it's visible above background
     }
 
@@ -516,40 +517,29 @@ class Stage1 extends Phaser.Scene {
         this.player.anims.play('run');
     }
 
-    setupPedestrians() {
-        this.pedestrian1 = this.physics.add.sprite(
+    setupPedestrians() {        this.pedestrian1 = this.physics.add.sprite(
             this.sys.game.config.width + 100,
             this.originY,
-            "pedestrian"
+            "pedestrian_ricky"
         );
-        this.pedestrian1.setImmovable(true);
-        this.pedestrian1.setTint(0xff6600); 
-
-        this.pedestrian2 = this.physics.add.sprite(
+        this.pedestrian1.setImmovable(true);this.pedestrian2 = this.physics.add.sprite(
             this.sys.game.config.width + 300,
             this.originY,
-            "pedestrian"
+            "pedestrian_mandy"
         );
-        this.pedestrian2.setImmovable(true);
-        this.pedestrian2.setTint(0xff0066); 
-
-        this.pedestrian3 = this.physics.add.sprite(
+        this.pedestrian2.setImmovable(true);        this.pedestrian3 = this.physics.add.sprite(
             this.sys.game.config.width + 500,
             this.originY,
-            "pedestrian"
+            "pedestrian_slob"
         );
         this.pedestrian3.setImmovable(true);
-        this.pedestrian3.setTint(0x6600ff); 
-        this.pedestrian3.setScale(1.3); 
-
-        this.pedestrian4 = this.physics.add.sprite(
+        this.pedestrian3.setScale(1.3);        this.pedestrian4 = this.physics.add.sprite(
             this.sys.game.config.width + 700,
             this.originY+20,
-            "pedestrian"
+            "pedestrian_delouise"
         );
         this.pedestrian4.setImmovable(true);
-        this.pedestrian4.setTint(0xfcff33); 
-        this.pedestrian4.setScale(0.5); 
+        this.pedestrian4.setScale(0.5);
 
         this.pedestrians = [this.pedestrian1, this.pedestrian2, this.pedestrian3, this.pedestrian4];
         this.updatePedestrianSpeeds();
@@ -1056,22 +1046,23 @@ class Stage1 extends Phaser.Scene {
             
             this.spawnBarragePedestrians();
         }
-    }
-
-    spawnBarragePedestrians() {
+    }    spawnBarragePedestrians() {
         const numWaves = 3;
         const pedestriansPerWave = 3;
+        const pedestrianSprites = ["pedestrian_mandy", "pedestrian_ricky", "pedestrian_delouise", "pedestrian_slob"];
         
         for (let wave = 0; wave < numWaves; wave++) {
             for (let i = 0; i < pedestriansPerWave; i++) {
+                // Randomly select a pedestrian sprite
+                const randomSprite = pedestrianSprites[Math.floor(Math.random() * pedestrianSprites.length)];
+                
                 const extraPed = this.physics.add.sprite(
                     this.sys.game.config.width + 200 + (wave * 350) + (i * 100),
                     this.originY,
-                    "pedestrian"
+                    randomSprite
                 );
                 
                 extraPed.setImmovable(true);
-                extraPed.setTint(0xff00ff);
                 extraPed.isHit = false;
                 extraPed.setScale(1.1);
                 
@@ -1082,7 +1073,7 @@ class Stage1 extends Phaser.Scene {
                 this.extraPedestrians.push(extraPed);
             }
         }
-    }    // Better cleanup
+    }// Better cleanup
     shutdown() {
         // Clean up barrage pedestrians
         if (this.extraPedestrians) {
