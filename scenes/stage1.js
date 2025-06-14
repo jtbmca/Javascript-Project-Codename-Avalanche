@@ -8,15 +8,13 @@ window.gameOptions = window.gameOptions || {
     maxJumpHold: 300,                          // Maximum time player can hold jump for variable height (milliseconds)
     jumpHoldForce: 15,                         // Additional upward force applied per frame while holding jump (reduced from 60 to 15 for proper scaling)
     playerStartPosition: 200,                  // Player's default X position on screen (pixels from left)
-    playerStartY: null,                       // Player's default Y position (null = auto, or set a value)
+    playerStartY: null,                        // Player's default Y position (null = auto, or set a value)
     jumps: 1,                                  // Maximum number of jumps allowed (multi-jump capability)
     difficultyIncreaseInterval: 10,            // Interval for increasing game difficulty (units/time)
     pedestrianSpawnChance: 0.4,                // Base probability of spawning pedestrians (0-1, where 1 = 100%)
-    // Updated difficulty scaling
     midGameSpawnIncrease: 0.2,                 // Additional spawn rate at 50% stage progress (+0.2 at 50% progress)
     finalSprintSpawnRate: 0.8,                 // Spawn rate during final sprint phase (3x spawn rate: 0.3 * 3 = 0.9)
     finalSprintThreshold: 80,                  // Stage progress percentage when final sprint begins (80% = intense spawn phase)
-    // Updated for missile chase mechanics
     stageDuration: 60,                         // Total time to complete the stage (60 seconds)
     stageTargetDistance: 17000,                // Distance player must travel to complete stage (pixels, increased from 15000)
     missileSpeed: 1.70,                        // Missile progression rate as percentage per second (1.70% per second = 102% in 60s)
@@ -24,7 +22,8 @@ window.gameOptions = window.gameOptions || {
     momentumRecoveryRate: 0.1                  // Rate at which momentum naturally recovers per frame (percentage points)
 };
 
-class Stage1 extends Phaser.Scene {    constructor() {
+class Stage1 extends Phaser.Scene {
+    constructor() {
         super("Stage1");
         this.hideOnScreenButtonsHandler = null;
         this.sceneTransitioning = false; // Prevent multiple scene starts
@@ -32,10 +31,11 @@ class Stage1 extends Phaser.Scene {    constructor() {
 
     preload() {
         this.load.image("platform", "./assets/sprites/platformb.png");
+        this.load.image("pedestrian", "./assets/sprites/player.png");
+        this.load.image("missile", "./assets/sprites/player.png");
+        this.load.image("sky", "./assets/sprites/sky.png");
         
-        // Replace the single player image with your 4 sprite sheets
-        // this.load.image("player", "./assets/sprites/Jaycean.png");
-        
+        // Load player run spritesheets
         this.load.spritesheet('player_run1', './assets/sprites/player_run_sheet1.png', {
             frameWidth: 192,
             frameHeight: 108
@@ -52,13 +52,12 @@ class Stage1 extends Phaser.Scene {    constructor() {
             frameWidth: 192,
             frameHeight: 108
         });
-        
-        this.load.image("pedestrian", "./assets/sprites/player.png");
-        this.load.image("missile", "./assets/sprites/player.png");
-        this.load.image("sky", "./assets/sprites/sky.png");
-    }    create() {
+    }
+
+    create() {
         // Reset scene transitioning flag
-        this.sceneTransitioning = false;        // --- PLAYER ANIMATIONS SETUP ---
+        this.sceneTransitioning = false;
+        // --- PLAYER ANIMATIONS SETUP ---
         const runFrames = [
             ...this.anims.generateFrameNumbers('player_run1', { start: 0, end: 25 }),
             ...this.anims.generateFrameNumbers('player_run2', { start: 0, end: 25 }),
@@ -78,7 +77,7 @@ class Stage1 extends Phaser.Scene {    constructor() {
         this.sky.displayWidth = this.sys.game.config.width;
         this.sky.displayHeight = this.sys.game.config.height;
 
-        // Initialize game state with missile chase mechanics
+        // Initialize game state
         this.gameState = {
             score: 0,
             level: 1,
@@ -98,7 +97,7 @@ class Stage1 extends Phaser.Scene {    constructor() {
             completionReason: ""
         };
 
-        // Initialize this line after other initializations
+        // Initialize this line after other initializations (to save yourself a headache)
         this.extraPedestrians = [];
         this.barrageActivated = false;
         this.barrageStartTime = 0;
@@ -113,7 +112,7 @@ class Stage1 extends Phaser.Scene {    constructor() {
         // Setup game elements
         this.initializePlatforms();
         this.setupPlayer();
-        this.setupMissile(); // New missile setup
+        this.setupMissile(); 
         this.setupPedestrians();
         this.setupInput();
         this.setupPhysics();
@@ -125,12 +124,11 @@ class Stage1 extends Phaser.Scene {    constructor() {
             this.time.delayedCall(5000, () => {
                 if (instructions) instructions.style.display = 'none';
             });
-        }
-
-        // Initialize movement state
-        this.isDiving = false;
+        }        // Initialize movement state        this.isDiving = false;
         this.isJumping = false;
         this.jumpHoldTime = 0;
+        this.showingCollisionTint = false; // Flag to prevent tint interference
+        this.currentTintState = 'none'; // Track current tint state
 
         // Dash state initialization
         this.dashReady = true;
@@ -139,28 +137,27 @@ class Stage1 extends Phaser.Scene {    constructor() {
         this.isDashing = false; 
         this.dashDuration = 200; 
         this.dashJumpWindow = 100; 
-        this.dashInvulnerable = false; // Add dash invulnerable flag
+        this.dashInvulnerable = false; 
 
-        // DashJump properties - ENHANCED for more dramatic effect
+        // DashJump properties
         this.dashJumpForce = 400; // Normal jump height
         this.dashJumpHorizontalBoost = 1200; // INCREASED from 800 to 1200
         this.dashJumpMaxHeight = 450; 
         this.lastCanDashJump = false;
-        // Add new properties for sustained movement
         this.isDashJumping = false;
         this.dashJumpStartTime = 0;
         this.dashJumpDuration = 800; // INCREASED from 600 to 800
 
         const scene = this;
 
-        // Existing button setup code (unchanged)
+        // Button setup code
         if (this.domElements.jumpButton) {
             this.domElements.jumpButton.addEventListener('touchstart', function(e) {
                 e.preventDefault();
                 if (scene.gameState.gameOver || scene.gameState.gameComplete) return;
                 scene.pointerIsDown = true;
                 scene.pointerJustDown = true;
-                scene.jumpStartTime = scene.time.now; // Add this line
+                scene.jumpStartTime = scene.time.now; 
             });
             
             this.domElements.jumpButton.addEventListener('mousedown', function(e) {
@@ -168,21 +165,21 @@ class Stage1 extends Phaser.Scene {    constructor() {
                 if (scene.gameState.gameOver || scene.gameState.gameComplete) return;
                 scene.pointerIsDown = true;
                 scene.pointerJustDown = true;
-                scene.jumpStartTime = scene.time.now; // Add this line
+                scene.jumpStartTime = scene.time.now; 
             });
             
             this.domElements.jumpButton.addEventListener('touchend', function(e) {
                 e.preventDefault();
                 if (scene.gameState.gameOver || scene.gameState.gameComplete) return;
                 scene.pointerIsDown = false;
-                scene.jumpHoldTime = 0; // Reset jump hold time
+                scene.jumpHoldTime = 0; // Reset jump hold time (important for mobile)
             });
             
             this.domElements.jumpButton.addEventListener('mouseup', function(e) {
                 e.preventDefault();
                 if (scene.gameState.gameOver || scene.gameState.gameComplete) return;
                 scene.pointerIsDown = false;
-                scene.jumpHoldTime = 0; // Reset jump hold time
+                scene.jumpHoldTime = 0; // Reset jump hold time (important for mobile)
             });
         }
 
@@ -318,9 +315,7 @@ class Stage1 extends Phaser.Scene {    constructor() {
     // Updated to use momentum-based speed calculation
     getAdjustedSpeed() {
         return this.gameState.currentSpeed * (this.gameState.momentum / 100);
-    }
-
-    // FIXED: Updated collision handling with dash invulnerability
+    }    // Updated collision handling with dash invulnerability
     hitPedestrian(player, pedestrian) {
         // Skip collision if player is actively dashing OR during kite window (including dash jump)
         if (this.isDashing || this.dashInvulnerable) {
@@ -331,36 +326,52 @@ class Stage1 extends Phaser.Scene {    constructor() {
             // Optional: Award points for skilled dash avoidance
             this.gameState.score += 5;
             this.gameState.pedestriansAvoided++;
-            
-            return; // Exit early, no collision damage
+              return; // Exit early, no collision damage
         }
 
         // Add a collision flag to each pedestrian to prevent multiple hits
-        if (pedestrian.isHit || this.gameState.collisionCooldown <= 0) {
-            if (!pedestrian.isHit) {
-                this.gameState.momentum = Math.max(10, 
-                    this.gameState.momentum - window.gameOptions.momentumLossPerCollision);
-                this.gameState.collisions++;
+        if (!pedestrian.isHit && this.gameState.collisionCooldown <= 0) {
+            console.log("🔴 COLLISION DETECTED! Applying red tint...");
+            
+            this.gameState.momentum = Math.max(10, 
+                this.gameState.momentum - window.gameOptions.momentumLossPerCollision);
+            this.gameState.collisions++;
+            
+            this.gameState.collisionCooldown = 45; 
+            
+            // Add a flag to prevent tint interference during collision feedback
+            this.showingCollisionTint = true;
+            this.currentTintState = 'collision';
+            
+            // Visual feedback for collision - red flash and screen shake
+            this.cameras.main.flash(50, 255, 0, 0, false); // Brief red flash
+            this.cameras.main.shake(100, 0.01);
+            this.player.setTint(0xff4444);
+            console.log("Red tint applied!");
+            
+            this.time.delayedCall(200, () => {
+                console.log("🔴 Collision tint timeout - resetting tint");
+                this.showingCollisionTint = false;
                 
-                this.gameState.collisionCooldown = 45; 
-                
-                this.cameras.main.shake(100, 0.01);
-                this.player.setTint(0xff4444);
-                
-                this.time.delayedCall(200, () => {
-                    if (!this.isDashing && !this.dashInvulnerable && !this.isDashJumping) {
-                        this.player.setTint(0x0088ff);
-                    }
-                });
-                
-                this.updateAllSpeeds();
-                
-                // Mark this pedestrian as hit temporarily
-                pedestrian.isHit = true;
-                this.time.delayedCall(500, () => {
-                    pedestrian.isHit = false;
-                });
-            }
+                // Reset to appropriate tint state
+                if (this.isDashing || this.dashInvulnerable || this.isDashJumping || this.isReturningFromDashJump) {
+                    this.player.setTint(0x4444ff); // Blue tint for invulnerability
+                    this.currentTintState = 'invulnerable';
+                    console.log("Applied blue invulnerability tint");
+                } else {
+                    this.player.clearTint();
+                    this.currentTintState = 'none';
+                    console.log("Cleared tint back to normal");
+                }
+            });
+            
+            this.updateAllSpeeds();
+            
+            // Mark this pedestrian as hit temporarily
+            pedestrian.isHit = true;
+            this.time.delayedCall(500, () => {
+                pedestrian.isHit = false;
+            });
         }
     }
 
@@ -371,10 +382,7 @@ class Stage1 extends Phaser.Scene {    constructor() {
         this.gameState.missilePosition = Math.min(100, this.gameState.missilePosition);
 
         // Update missile sprite position
-        this.missile.x = (this.gameState.missilePosition / 100) * this.sys.game.config.width;
-
-        // --- NEW: Player progress based on actual speed and target distance ---
-        // Convert delta from ms to seconds
+        this.missile.x = (this.gameState.missilePosition / 100) * this.sys.game.config.width;        // Convert delta from ms to seconds
         const deltaSeconds = delta / 1000;
         // Add distance traveled this frame
         this.gameState.stageDistance += this.getAdjustedSpeed() * deltaSeconds;
@@ -382,14 +390,11 @@ class Stage1 extends Phaser.Scene {    constructor() {
         this.gameState.stageProgress = Math.min(
             100,
             (this.gameState.stageDistance / window.gameOptions.stageTargetDistance) * 100
-        );
-        // --- END NEW ---
-
-        // Check win/lose conditions
+        );// Check win/lose conditions
         this.checkStageCompletion();
     }
 
-    // New stage completion logic
+    // New stage completion check
     checkStageCompletion() {
         // Player wins if they reach 100% progress before missile reaches 100%
         if (this.gameState.stageProgress >= 100 && !this.gameState.gameComplete && !this.gameState.gameOver) {
@@ -399,7 +404,9 @@ class Stage1 extends Phaser.Scene {    constructor() {
         else if (this.gameState.missilePosition >= 100 && !this.gameState.gameComplete && !this.gameState.gameOver) {
             this.triggerGameOver("The missile got away!");
         }
-    }    // New stage completion handler
+    }
+
+    // New stage completion handler
     completeStage(reason) {
         this.gameState.gameComplete = true;
         this.gameState.completionReason = reason;
@@ -416,17 +423,15 @@ class Stage1 extends Phaser.Scene {    constructor() {
         this.gameState.score += timeBonus + momentumBonus + avoidanceBonus;
         
         this.physics.pause();
-        
-        if (this.domElements.gameOverScreen) {
+          if (this.domElements.gameOverScreen) {
             this.domElements.gameOverReason.textContent = `${reason} Stage Complete! Moving to Tower...`;
             this.domElements.gameOverScore.textContent = `Final Score: ${this.gameState.score}`;
             this.domElements.gameOverScreen.style.display = 'block';
-        }
-          this.cameras.main.flash(500, 0, 255, 0);
-        this.player.setTint(0x00ff00);
+        }        this.cameras.main.flash(500, 0, 255, 0);
         
         console.log("🎉 Stage 1 completed! Moving to tower1...");
-          // Transition to tower1 after a delay
+
+        // Transition to tower1 after a delay
         this.time.delayedCall(3000, () => {
             if (this.sceneTransitioning) return; // Prevent multiple transitions
             this.sceneTransitioning = true;
@@ -435,15 +440,13 @@ class Stage1 extends Phaser.Scene {    constructor() {
             if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
             this.scene.start("tower1");
         });
-    }
-
-    // Updated scoring for pedestrian avoidance
+    }    // Updated scoring for pedestrian avoidance
     updateScore(points = 10) {
         this.gameState.score += points;
         this.gameState.pedestriansAvoided++;
     }
 
-    // Existing methods remain unchanged (keeping all movement, input, platform, pedestrian logic)
+    // Existing movement, input, platform, pedestrian logic
     initializePlatforms() {
         this.platformGroup = this.add.group({
             removeCallback: function(platform) {
@@ -496,16 +499,13 @@ class Stage1 extends Phaser.Scene {    constructor() {
             "player_run1"
         );
         this.player.setGravityY(window.gameOptions.playerGravity);
-        this.player.setCollideWorldBounds(true, false, false, false, true);
-        this.playerJumps = 0;
+        this.player.setCollideWorldBounds(true, false, false, false, true);        this.playerJumps = 0;
         this.jumpTimer = 0;  
-        this.jumpBufferDuration = 150; 
-        this.player.setTint(0x0088ff); 
-        // Wait for texture to load, then align feet to platform
+        this.jumpBufferDuration = 150;// Wait for texture to load, then align feet to platform
         this.player.on('texturecomplete', () => {
-            this.player.y = this.originY - (this.player.displayHeight / 2) + 4; // +4 for fine-tuning
+            this.player.y = this.originY - (this.player.displayHeight / 2) + 4;
             this.player.body.setSize(60, 90);
-            this.player.body.setOffset(66, 0); // y offset 0, so feet match collision box
+            this.player.body.setOffset(66, 0);
         });
         // If already loaded, set immediately
         if (this.player.texture.key) {
@@ -586,7 +586,7 @@ class Stage1 extends Phaser.Scene {    constructor() {
         this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
         this.keyESC = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
         this.shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
-        this.keyR = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R); // Add R key
+        this.keyR = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R); 
 
         this.pointerIsDown = false;
         this.pointerJustDown = false;
@@ -618,20 +618,16 @@ class Stage1 extends Phaser.Scene {    constructor() {
                 this.dashJump();
                 return;
             }
-            
-            console.log("✅ Triggering REGULAR JUMP");
+              console.log("✅ Triggering REGULAR JUMP");
             this.player.setVelocityY(window.gameOptions.jumpForce * -1);
             this.isDiving = false;
             this.isJumping = true;
             this.jumpHoldTime = 0;
-            this.jumpStartTime = this.time.now; // This is the critical line for keyboard input
-            
-            this.player.setTint(0x00ff00);
+            this.jumpStartTime = this.time.now;
         } else if (!this.isDiving && !this.isPlayerGrounded()) {
             console.log("✅ Triggering DIVE");
             this.isDiving = true;
             this.player.setVelocityY(900);
-            this.player.setTint(0xffff00);
         }
     }
 
@@ -647,9 +643,10 @@ class Stage1 extends Phaser.Scene {    constructor() {
         this.physics.add.collider(this.player, this.platformGroup);
         
         this.pedestrians.forEach(pedestrian => {
-            this.physics.add.overlap(this.player, pedestrian, this.hitPedestrian, null, this);
-        });
-    }    triggerGameOver(reason) {
+            this.physics.add.overlap(this.player, pedestrian, this.hitPedestrian, null, this);        });
+    }
+
+    triggerGameOver(reason) {
         this.gameState.gameOver = true;
         this.physics.pause();
         
@@ -660,18 +657,18 @@ class Stage1 extends Phaser.Scene {    constructor() {
         if (this.domElements.gameOverScreen) {
             this.domElements.gameOverReason.textContent = reason;
             this.domElements.gameOverScore.textContent = `Final Score: ${this.gameState.score}`;
-            this.domElements.gameOverScreen.style.display = 'block';
-        }
+            this.domElements.gameOverScreen.style.display = 'block';        }
         
         this.cameras.main.shake(500, 0.02);
-        this.player.setTint(0xff0000);
-    }update(time, delta) {
+    }
+
+    update(time, delta) {
         if (this.gameState.gameOver || this.gameState.gameComplete) {
             // CRITICAL: Reset all input flags immediately during game over to prevent auto-restart
             this.pointerJustDown = false;
             this.pointerIsDown = false;
             
-            // Keyboard game over controls - changed SPACE to R
+            // Keyboard game over controls 
             if (Phaser.Input.Keyboard.JustDown(this.keyR)) {
                 if (this.sceneTransitioning) return; // Prevent multiple transitions
                 this.sceneTransitioning = true;
@@ -699,26 +696,25 @@ class Stage1 extends Phaser.Scene {    constructor() {
             return;
         }
         
-        // FIXED: More comprehensive position management that respects ALL tween states
+        // More comprehensive position management that respects ALL tween states
         if (!this.isDashJumping && 
             !this.isReturningFromDashJump && 
             !this.isDashing && 
             !this.isDashTweening &&
             !this.isDashJumpReturning) {
             this.player.x = window.gameOptions.playerStartPosition; // Normal position (200)
-        } else if (this.isDashJumping) {
-            // During dash jump, allow movement but with tighter bounds
-            const startPos = window.gameOptions.playerStartPosition; // 200
-            const minX = startPos - 100; // Can go 100px left (to 100)
-            const maxX = startPos + 400; // Can go 400px right (to 600)
-            this.player.x = Phaser.Math.Clamp(this.player.x, minX, maxX);
-            
-            // If player goes too far left, gently pull back
-            if (this.player.x < startPos - 50) {
-                this.player.setVelocityX(Math.max(this.player.body.velocity.x, 50)); // Minimum rightward velocity
-            }
-        }
-        // IMPORTANT: During ANY tween state (isDashTweening OR isDashJumpReturning), 
+        } else            if (this.isDashJumping) {
+                // During dash jump, allow movement but with tighter bounds
+                const startPos = window.gameOptions.playerStartPosition;
+                const minX = startPos - 100;
+                const maxX = startPos + 400;
+                this.player.x = Phaser.Math.Clamp(this.player.x, minX, maxX);
+                
+                // If player goes too far left, gently pull back
+                if (this.player.x < startPos - 50) {
+                    this.player.setVelocityX(Math.max(this.player.body.velocity.x, 50));
+                }
+            }        // IMPORTANT: During ANY tween state (isDashTweening OR isDashJumpReturning), 
         // don't touch player.x at all - let the tweens handle it completely
 
         // Handle dash jump sustained movement first
@@ -726,44 +722,45 @@ class Stage1 extends Phaser.Scene {    constructor() {
             const timeSinceDashJump = this.time.now - this.dashJumpStartTime;
             if (timeSinceDashJump < this.dashJumpDuration) {
                 const progress = timeSinceDashJump / this.dashJumpDuration;
-                
-                let forwardSpeed;
+                  let forwardSpeed;
                 if (progress < 0.3) {
-                    forwardSpeed = 600; // Reduced from 800 for better control
+                    forwardSpeed = 600;
                 } else if (progress < 0.6) {
-                    forwardSpeed = 300; // Reduced from 400
+                    forwardSpeed = 300;
                 } else if (progress < 0.9) {
-                    forwardSpeed = 300 - ((progress - 0.6) / 0.3) * 300; // 300 to 0
+                    forwardSpeed = 300 - ((progress - 0.6) / 0.3) * 300;
                 } else {
-                    // FIXED: Gentle return instead of negative velocity
-                    forwardSpeed = 0; // Stop moving, don't pull back
+                    // Gentle return instead of negative velocity
+                    forwardSpeed = 0;
                 }
                 
-                this.player.setVelocityX(forwardSpeed);
-            } else {
+                this.player.setVelocityX(forwardSpeed);            } else {
                 this.isDashJumping = false;
-                this.isReturningFromDashJump = true; // NEW: Flag to prevent position reset
+                this.isReturningFromDashJump = true;
                 this.startDashJumpReturn();
             }
         }
 
-        // FIXED: Check if we're waiting to start the return and player just landed
+        // Check if we're waiting to start the return and player just landed
         if (this.returnWaitingForLanding && this.isPlayerGrounded()) {
             this.returnWaitingForLanding = false;
             this.startDashJumpReturn();
-        }        // NEW: Update missile chase mechanics
+        }
+
+        // Update missile chase mechanics
         this.updateMissileChase(delta);
-        
-        // Handle jump input - CRITICAL: Block ALL input during game over/complete states
+          // Handle jump input 
         if ((Phaser.Input.Keyboard.JustDown(this.spaceKey) || this.pointerJustDown) && 
             !this.gameState.gameOver && !this.gameState.gameComplete) {
             this.handleJumpOrDive();
-        }        // FIXED: Proper variable jump height with scaling - Block during game over
+        }
+
+        // Proper variable jump height with scaling
         if (this.isJumping && (this.spaceKey.isDown || this.pointerIsDown) && 
             !this.gameState.gameOver && !this.gameState.gameComplete) {
             this.jumpHoldTime += delta;
             if (this.jumpHoldTime < window.gameOptions.maxJumpHold) {
-                // FIXED: Scale the jump force properly for frame rate independence
+                // Scale the jump force properly for frame rate independence
                 const scaledJumpForce = window.gameOptions.jumpHoldForce * (delta / 16.67);
                 this.player.setVelocityY(this.player.body.velocity.y - scaledJumpForce);
             }
@@ -789,24 +786,22 @@ class Stage1 extends Phaser.Scene {    constructor() {
         this.pedestrians.forEach((pedestrian, index) => {
             if (pedestrian.x < -pedestrian.displayWidth / 2) {
                 const spawnChance = this.getDynamicSpawnChance();
-                
-                // Add this debug log to see the actual values
-                if (index === 0) { // Only log once per frame
+                  // Add this debug log to see the actual values
+                if (index === 0) {
                     console.log(`Progress: ${this.gameState.stageProgress.toFixed(1)}%, Spawn chance: ${spawnChance.toFixed(2)}`);
                 }
                 
-                // INCREASED scaling for more noticeable effect
-                const adjustedChance = spawnChance * 0.95; // Changed from 0.8 to 0.95
+                // Scaling for more noticeable effect
+                const adjustedChance = spawnChance * 0.95;
                 
                 if (Math.random() < adjustedChance) {
                     const basePositions = [100, 300, 500, 700];
-                    
-                    // For final sprint, spawn them much closer together
+                      // For final sprint, spawn them much closer together
                     let randomOffset;
                     if (this.gameState.stageProgress >= window.gameOptions.finalSprintThreshold) {
-                        randomOffset = Phaser.Math.Between(-20, 50); // Much closer spacing
+                        randomOffset = Phaser.Math.Between(-20, 50);
                     } else {
-                        randomOffset = Phaser.Math.Between(-50, 200); // Normal spacing
+                        randomOffset = Phaser.Math.Between(-50, 200);
                     }
                     
                     pedestrian.x = this.sys.game.config.width + basePositions[index] + randomOffset;
@@ -814,9 +809,7 @@ class Stage1 extends Phaser.Scene {    constructor() {
                     pedestrian.x = this.sys.game.config.width + 1500 + (index * 200);
                 }
             }
-        });
-
-        // Manage continuous street platforms
+        });        // Manage continuous street platforms
         let minDistance = this.sys.game.config.width * 2; 
         let rightmostX = -Infinity;
         
@@ -834,21 +827,16 @@ class Stage1 extends Phaser.Scene {    constructor() {
         if (minDistance > this.sys.game.config.width * 0.2 || 
             rightmostX < this.sys.game.config.width * 1.5) {  
             this.addStreetSegment(this.sys.game.config.width + 200);
-        }
-
-        // Handle jump buffer timing
+        }        // Handle jump buffer timing
         if (this.jumpTimer > 0) {
             if (time - this.jumpTimer > this.jumpBufferDuration) {
                 this.jumpTimer = 0;
                 this.isJumping = false; 
             }
-        }
-
-        // Only reset jump state when landing
+        }        // Only reset jump state when landing
         if (this.isPlayerGrounded() && !this.wasGrounded) {
             if (this.isDiving) {
                 this.isDiving = false;
-                this.player.setTint(0x0088ff);
             }
             this.isJumping = false;
             this.jumpTimer = 0;
@@ -856,43 +844,44 @@ class Stage1 extends Phaser.Scene {    constructor() {
             this.playerJumps = 0;
         }
 
-        this.wasGrounded = this.isPlayerGrounded();        // DASH LOGIC - Block during game over
+        this.wasGrounded = this.isPlayerGrounded();        // DASH LOGIC 
         const dashPressed = this.shiftKey.isDown && this.isPlayerGrounded() && !this.isJumping && 
-                           !this.gameState.gameOver && !this.gameState.gameComplete;
-
-        if (dashPressed && this.dashReady) {
+                           !this.gameState.gameOver && !this.gameState.gameComplete;        if (dashPressed && this.dashReady) {
             this.doDash();
             this.dashReady = false;
             this.lastDashTime = this.time.now;
-        }
-
-        if (!this.shiftKey.isDown && (this.time.now - this.lastDashTime > this.dashCooldown)) {
+        }        if (!this.shiftKey.isDown && (this.time.now - this.lastDashTime > this.dashCooldown)) {
             this.dashReady = true;
+        }        // State-based tint management - only change when state changes (not every frame)
+        // BUT don't interfere if we're showing collision tint
+        if (!this.showingCollisionTint) {
+            let targetTintState;
+            
+            if (this.isDiving) {
+                targetTintState = 'diving';
+            } else if (this.isDashing || this.dashInvulnerable || this.isDashJumping || this.isReturningFromDashJump) {
+                targetTintState = 'invulnerable';
+            } else {
+                targetTintState = 'none';
+            }
+            
+            // Only change tint if state has changed
+            if (this.currentTintState !== targetTintState) {
+                if (targetTintState === 'diving') {
+                    this.player.setTint(0xffff00); // Yellow for diving
+                    console.log("🟡 Applied diving tint");
+                } else if (targetTintState === 'invulnerable') {
+                    this.player.setTint(0x4444ff); // Blue tint for invulnerability
+                    console.log("🔵 Applied invulnerability tint");
+                } else {
+                    this.player.clearTint();
+                    console.log("⚪ Cleared tint to normal");
+                }
+                this.currentTintState = targetTintState;
+            }
         }
 
-        // Updated visual feedback to show extended kite window
-        // In the update method, modify the tint logic:
-        // Visual feedback for dash jump window and other states
-        if (this.canDashJump()) {
-            this.player.setTint(0xffaa00); // Orange for dash jump window
-            console.log("🚀 DASH JUMP WINDOW ACTIVE!");
-        } else if (this.isDashJumping) {
-            this.player.setTint(0xffff00); // Yellow during dash jump
-        } else if (this.isReturningFromDashJump) {
-            this.player.setTint(0xaaffaa); // Light green during invulnerable return
-        } else if (this.isDashing) {
-            this.player.setTint(0x00ffff); // Cyan during dash
-        } else if (this.dashInvulnerable) {
-            this.player.setTint(0x88ffff); // Light cyan during extended kite window
-        } else if (this.isDiving) {
-            this.player.setTint(0xffff00); // Yellow during dive
-        } else if (this.isPlayerGrounded()) {
-            this.player.setTint(0x0088ff); // Normal blue when grounded
-        } else {
-            this.player.setTint(0x00ff00); // Green when jumping normally
-        }
-        
-        // Check for barrage mode activation - UNCOMMENT AND IMPROVE
+        // Check for barrage mode activation
         if (this.gameState.stageProgress >= window.gameOptions.finalSprintThreshold && 
             !this.barrageActivated) {
             this.activateBarrageMode();
@@ -906,24 +895,21 @@ class Stage1 extends Phaser.Scene {    constructor() {
 
         this.updateUI();
         this.pointerJustDown = false;
-    }
-
-    // Updated dash method - prevent going behind startPosition but allow dashing
+    }    // Updated dash method - prevent going behind startPosition but allow dashing
     doDash() {
         console.log("=== DASH STARTED ===");
         console.log("Time:", this.time.now);
-        console.log("Player position:", this.player.x, this.player.y);
-        
-        this.isDashing = true;
+        console.log("Player position:", this.player.x, this.player.y);        this.isDashing = true;
         this.isDashTweening = true;
         this.dashInvulnerable = true;
+        this.player.setTint(0x4444ff); // Blue tint for invulnerability
         console.log("isDashing set to:", this.isDashing);
         console.log("🛡️ Dash invulnerability activated!");
         
         // Stop any existing tweens on the player to prevent conflicts
         this.tweens.killTweensOf(this.player);
         
-        // FIXED: If returning from dash jump, clear those flags since we're starting a new dash
+        // If returning from dash jump, clear those flags since we're starting a new dash
         if (this.isDashJumpReturning || this.isReturningFromDashJump) {
             this.isDashJumpReturning = false;
             this.isReturningFromDashJump = false;
@@ -932,24 +918,22 @@ class Stage1 extends Phaser.Scene {    constructor() {
         
         // Calculate forward movement distance (25-75 pixels)
         const dashDistance = Phaser.Math.Between(25, 75);
-        // FIXED: Ensure we don't go behind startPosition
+        // Ensure we don't go behind startPosition
         const targetX = Math.max(
-            window.gameOptions.playerStartPosition, // Don't go behind start position
+            window.gameOptions.playerStartPosition,
             Math.min(
                 this.player.x + dashDistance, 
                 window.gameOptions.playerStartPosition + 100
             )
         );
-        
-        // Initial velocity burst
+          // Initial velocity burst
         this.player.setVelocityX(600);
-        this.player.setTint(0x00ffff);
         
         // Single smooth forward movement tween
         this.tweens.add({
             targets: this.player,
             x: targetX,
-            duration: this.dashDuration, // 200ms
+            duration: this.dashDuration,
             ease: 'Power2.easeOut',
             onComplete: () => {
                 console.log("🏃 Dash forward movement complete");
@@ -964,23 +948,18 @@ class Stage1 extends Phaser.Scene {    constructor() {
                 this.player.setVelocityX(0);
             }
             
-            // Start smooth return tween - but only if no dash jump is coming
+            // Start smooth return tween - but ONLY IF NO DASH JUMP IS COMING
             this.time.delayedCall(this.dashJumpWindow, () => {
                 if (!this.isDashJumping && !this.isReturningFromDashJump) {
                     // Start return tween
                     this.tweens.add({
                         targets: this.player,
                         x: window.gameOptions.playerStartPosition,
-                        duration: 600, // Longer, smoother return
-                        ease: 'Power2.easeInOut',
-                        onComplete: () => {
-                            this.isDashTweening = false; // Allow position reset again
+                        duration: 600,
+                        ease: 'Power2.easeInOut',                        onComplete: () => {
+                            this.isDashTweening = false;
                             this.dashInvulnerable = false;
                             console.log("🏃 Dash return complete - back to normal");
-                            
-                            if (this.isPlayerGrounded() && !this.isDashing && !this.isDashJumping) {
-                                this.player.setTint(0x0088ff);
-                            }
                         }
                     });
                 } else {
@@ -998,18 +977,17 @@ class Stage1 extends Phaser.Scene {    constructor() {
         // Stop any ongoing dash tweens to prevent conflicts
         this.tweens.killTweensOf(this.player);
         this.isDashTweening = false; // Dash tween control is now transferred to dash jump
-        
-        // ENHANCED: More dramatic horizontal movement
+          // Enhanced: More dramatic horizontal movement
         this.player.setVelocityY(window.gameOptions.jumpForce * -1);
         this.player.setVelocityX(this.dashJumpHorizontalBoost);
         
         // Add sustained forward movement during the dash jump
         this.isDashJumping = true;
-        this.dashJumpStartTime = this.time.now;
-        this.dashJumpDuration = 800;
+        this.dashJumpStartTime = this.time.now;        this.dashJumpDuration = 800;
         
         // Ensure invulnerability continues through the entire sequence
         this.dashInvulnerable = true;
+        this.player.setTint(0x4444ff); // Blue tint for invulnerability
         console.log("🛡️ Dash jump invulnerability extended!");
         
         this.isDiving = false;
@@ -1017,18 +995,17 @@ class Stage1 extends Phaser.Scene {    constructor() {
         this.jumpHoldTime = 0;
         this.jumpStartTime = this.time.now;
         
-        this.player.setTint(0xffff00); 
         this.cameras.main.shake(200, 0.01);
         
         this.isDashing = false;
         console.log("Dash state reset, isDashing:", this.isDashing);
     }
 
-    // FIXED: canDashJump - allow dash jump while grounded OR airborne during window
+    // canDashJump - allow dash jump while grounded OR airborne during window
     canDashJump() {
         const timeSinceDash = this.time.now - this.lastDashTime;
         const withinWindow = timeSinceDash <= (this.dashDuration + this.dashJumpWindow);
-        // FIXED: Remove the grounded check - allow dash jump regardless of ground state during window
+        // Remove the grounded check - allow dash jump regardless of ground state during window
         const canJump = withinWindow && !this.isDashJumping;
         
         console.log("=== DASH JUMP CHECK ===");
@@ -1155,9 +1132,7 @@ class Stage1 extends Phaser.Scene {    constructor() {
         }
         
         return spawnChance;
-    }
-
-    // NEW: Start the smooth return to start position with extended invulnerability
+    }    // Start the smooth return to start position with extended invulnerability
     startDashJumpReturn() {
         this.player.setVelocityX(0); // Stop any movement
         this.isDashJumpReturning = true; // NEW: Specific flag for dash jump return
@@ -1187,15 +1162,9 @@ class Stage1 extends Phaser.Scene {    constructor() {
                 // Clear ALL return flags
                 this.isReturningFromDashJump = false;
                 this.isDashJumpReturning = false;
-                
-                // ONLY NOW turn off invulnerability
+                  // ONLY NOW turn off invulnerability
                 this.dashInvulnerable = false;
                 console.log("🛡️ All flags cleared - returning to normal state");
-                
-                // Reset tint to normal if grounded and not in other special states
-                if (this.isPlayerGrounded() && !this.isDashing && !this.isDashJumping && !this.isDiving) {
-                    this.player.setTint(0x0088ff);
-                }
             }
         });
     }

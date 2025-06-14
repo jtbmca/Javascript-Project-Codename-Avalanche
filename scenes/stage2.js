@@ -1,6 +1,7 @@
 // Stage 2: Rooftop Runner - Inspired by Canabalt
 // Jayceon emerges from a window and runs across building rooftops to catch the missile
 
+// --- STAGE 2 CONFIGURATION ---
 // Stage 2 specific game options (don't overwrite global gameOptions)
 window.stage2Options = {
     platformStartSpeed: 350,                   // Slightly faster base speed for rooftops
@@ -25,58 +26,70 @@ window.stage2Options = {
     // Rooftop-specific settings
     minBuildingGap: 80,                        // Minimum gap between buildings
     maxBuildingGap: 200,                       // Maximum gap between buildings
-    buildingHeightVariation: 100,              // Height difference between buildings
+    buildingHeightVariation: 100,              // Height difference between buildings    
     obstacleVariety: 4                         // Different types of obstacles
 };
 
+// --- STAGE 2 CLASS DEFINITION ---
+
 class Stage2 extends Phaser.Scene {
-        constructor() {
+    constructor() {
         super("Stage2");
         this.hideOnScreenButtonsHandler = null;
-        this.sceneTransitioning = false; // Prevent multiple scene starts
-    }    preload() {
+        this.sceneTransitioning = false;
+    }
+
+    // --- ASSET LOADING ---
+
+    preload() {
+        // Load building and sprites
         this.load.image("building", "./assets/sprites/platformb.png");
-        
-        // Load the 4 sprite sheets for Jayceon's running animation
-        this.load.spritesheet('player_run1', './assets/sprites/player_run_sheet1.png', {
-            frameWidth: 192,
-            frameHeight: 108
-        });
-        this.load.spritesheet('player_run2', './assets/sprites/player_run_sheet2.png', {
-            frameWidth: 192,
-            frameHeight: 108
-        });
-        this.load.spritesheet('player_run3', './assets/sprites/player_run_sheet3.png', {
-            frameWidth: 192,
-            frameHeight: 108
-        });
-        this.load.spritesheet('player_run4', './assets/sprites/player_run_sheet4.png', {
-            frameWidth: 192,
-            frameHeight: 108
-        });
-        
         this.load.image("obstacle", "./assets/sprites/player.png");
         this.load.image("missile", "./assets/sprites/player.png");
-    }    create() {
-        // Reset scene transitioning flag
+        
+        // Load player animation sprite sheets
+        const sheetConfig = { frameWidth: 192, frameHeight: 108 };
+        this.load.spritesheet('player_run1', './assets/sprites/player_run_sheet1.png', sheetConfig);
+        this.load.spritesheet('player_run2', './assets/sprites/player_run_sheet2.png', sheetConfig);
+        this.load.spritesheet('player_run3', './assets/sprites/player_run_sheet3.png', sheetConfig);        
+        this.load.spritesheet('player_run4', './assets/sprites/player_run_sheet4.png', sheetConfig);
+    }
+
+    // --- SCENE INITIALIZATION ---
+
+    create() {
         this.sceneTransitioning = false;
         
-        // --- PLAYER ANIMATIONS SETUP ---
+        this.createPlayerAnimations();
+        this.initializeGameState();
+        this.initializeUI();
+        this.setupGameElements();
+        this.showRooftopInstructions();
+        this.initializePlayerStates();
+        this.setupMobileControls();
+    }
+
+    // --- ANIMATION SETUP ---
+
+    createPlayerAnimations() {
         const runFrames = [
             ...this.anims.generateFrameNumbers('player_run1', { start: 0, end: 25 }),
             ...this.anims.generateFrameNumbers('player_run2', { start: 0, end: 25 }),
             ...this.anims.generateFrameNumbers('player_run3', { start: 0, end: 25 }),
             ...this.anims.generateFrameNumbers('player_run4', { start: 0, end: 25 })
         ];
+        
         this.anims.create({
             key: 'run',
             frames: runFrames,
-            frameRate: 16,
+            frameRate: 16,            
             repeat: -1
         });
-        // --- END PLAYER ANIMATIONS SETUP ---
-        
-        // Initialize game state for rooftop running
+    }
+
+    // --- GAME STATE INITIALIZATION ---
+
+    initializeGameState() {
         this.gameState = {
             score: 0,
             level: 1,
@@ -93,34 +106,46 @@ class Stage2 extends Phaser.Scene {
             obstaclesAvoided: 0,
             collisions: 0,
             completionReason: "",
-            lastBuildingHeight: this.sys.game.config.height * 0.8 // Track building heights
-        };        // Initialize arrays for buildings (obstacles are now managed per building)
-        this.buildings = [];
-        this.pitfalls = [];
+            lastBuildingHeight: this.sys.game.config.height * 0.8
+        };
 
-        // Initialize DOM UI
-        this.initializeUI();
-        
+        this.buildings = [];        
+        this.pitfalls = [];
+    }
+
+    // --- GAME ELEMENTS SETUP ---
+
+    setupGameElements() {
         // Make on-screen buttons visible
-        if (this.domElements.jumpButton) this.domElements.jumpButton.style.display = 'block';
-        if (this.domElements.dashButton) this.domElements.dashButton.style.display = 'block';        // Setup game elements - IMPORTANT: Setup obstacles BEFORE buildings since buildings need the obstacle pool
+        this.setButtonsVisible(true);
+        
+        // Setup game elements in proper order
         this.setupObstacles();
         this.initializeBuildings();
         this.setupPlayer();
         this.setupMissile();
         this.setupInput();
         this.setupPhysics();
-        
-        // Show rooftop instructions
-        this.showRooftopInstructions();
+    }
 
-        // Initialize movement state
+    setButtonsVisible(visible) {
+        const display = visible ? 'block' : 'none';
+        if (this.domElements.jumpButton) this.domElements.jumpButton.style.display = display;
+        if (this.domElements.dashButton) this.domElements.dashButton.style.display = display;
+    }
+
+    initializePlayerStates() {
+        // Movement state
         this.isDiving = false;
         this.isJumping = false;
         this.jumpHoldTime = 0;
-        this.playerOnBuilding = true; // Track if player is on a building vs falling
-
-        // Dash state initialization (same as Stage 1)
+        this.playerOnBuilding = true;
+        this.wasGrounded = false;
+        this.jumpTimer = 0;
+        this.jumpBufferDuration = 150;
+        this.playerJumps = 0;
+        
+        // Dash state
         this.dashReady = true;
         this.dashCooldown = 1000;
         this.lastDashTime = 0;
@@ -128,49 +153,58 @@ class Stage2 extends Phaser.Scene {
         this.dashDuration = 200;
         this.dashJumpWindow = 100;
         this.dashInvulnerable = false;
+        this.isDashTweening = false;
 
-        // DashJump properties
+        // Dash jump state
         this.dashJumpForce = 450;
-        this.dashJumpHorizontalBoost = 1400; // Even more powerful for building gaps
+        this.dashJumpHorizontalBoost = 1400;
         this.dashJumpMaxHeight = 500;
         this.lastCanDashJump = false;
         this.isDashJumping = false;
         this.dashJumpStartTime = 0;
-        this.dashJumpDuration = 900; // Longer duration for building crossings
+        this.dashJumpDuration = 900;
+        this.isReturningFromDashJump = false;
+        this.isDashJumpReturning = false;
+        this.returnWaitingForLanding = false;
+        
+        // Visual state        
+        this.showingCollisionTint = false;
+        this.currentTintState = 'none';
+    }    
 
-        this.setupMobileControls();
-    }
-
+    // --- INSTRUCTIONS AND UI SETUP ---
     showRooftopInstructions() {
         const instructions = this.domElements.instructions;
-        if (instructions) {
-            instructions.innerHTML = `
-                <strong>Rooftop Runner</strong><br>
-                Smash through the window and catch the missile!<br>
-                <br>
-                <strong>Controls:</strong><br>
-                🎮 <strong>Jump:</strong> Tap screen, SPACE key, or JUMP button<br>
-                ⚡ <strong>Dash:</strong> SHIFT key, double-tap, or DASH button<br>
-                🚀 <strong>Dash Jump:</strong> Jump right after dashing for mega jump!<br>
-                🔙 <strong>Menu:</strong> ESC key<br>
-                <br>
-                <em>💡 Avoid rooftop obstacles and DON'T FALL!</em><br>
-                <em>🏢 Jump between buildings to catch the missile!</em><br>
-                <em>🔥 The missile is getting away - GO FAST!</em>
-            `;
-            instructions.style.display = 'block';
-            this.time.delayedCall(6000, () => {
-                if (instructions) instructions.style.display = 'none';
-            });
-        }
-    }
-
+        if (!instructions) return;
+        
+        instructions.innerHTML = `
+            <strong>Rooftop Runner</strong><br>
+            Smash through the window and catch the missile!<br>
+            <br>
+            <strong>Controls:</strong><br>
+            🎮 <strong>Jump:</strong> Tap screen, SPACE key, or JUMP button<br>
+            ⚡ <strong>Dash:</strong> SHIFT key, double-tap, or DASH button<br>
+            🚀 <strong>Dash Jump:</strong> Jump right after dashing for mega jump!<br>
+            🔙 <strong>Menu:</strong> ESC key<br>
+            <br>
+            <em>💡 Avoid rooftop obstacles and DON'T FALL!</em><br>
+            <em>🏢 Jump between buildings to catch the missile!</em><br>
+            <em>🔥 The missile is getting away - GO FAST!</em>
+        `;
+        
+        instructions.style.display = 'block';
+        this.time.delayedCall(6000, () => {
+            if (instructions) instructions.style.display = 'none';
+        });
+    }    // --- MISSILE SETUP ---
     setupMissile() {
         this.missile = this.add.sprite(0, this.sys.game.config.height * 0.1, "missile");
         this.missile.setScale(0.6);
-        this.missile.setTint(0xff2222); // Bright red missile
+        this.missile.setTint(0xff2222);
         this.missile.setDepth(10);
     }
+
+    // --- UI INITIALIZATION ---
 
     initializeUI() {
         this.domElements = {
@@ -195,65 +229,72 @@ class Stage2 extends Phaser.Scene {
     updateUI() {
         if (!this.domElements.scoreDisplay) return;
 
+        // Update display elements
         this.domElements.scoreDisplay.textContent = `Score: ${this.gameState.score}`;
         this.domElements.levelDisplay.textContent = `Progress: ${Math.round(this.gameState.stageProgress)}%`;
         this.domElements.speedDisplay.textContent = `Speed: ${Math.round(this.getAdjustedSpeed())}`;
         this.domElements.timeDisplay.textContent = `Missile: ${Math.round(this.gameState.missilePosition)}%`;
         
+        this.updateMomentumDisplay();
+    }
+
+    updateMomentumDisplay() {
         const momentum = Math.round(this.gameState.momentum);
         this.domElements.momentumDisplay.textContent = `Momentum: ${momentum}%`;
         
-        // Color coding for momentum
-        if (momentum >= 80) {
-            this.domElements.momentumDisplay.style.color = '#00ff00';
-        } else if (momentum >= 60) {
-            this.domElements.momentumDisplay.style.color = '#ffff00';
-        } else if (momentum >= 40) {
-            this.domElements.momentumDisplay.style.color = '#ff6600';
-        } else {
-            this.domElements.momentumDisplay.style.color = '#ff0000';
-        }
-    }
-
-    getAdjustedSpeed() {
+        // Apply color coding based on momentum level
+        const colors = {
+            high: '#00ff00',    // Green (80%+)
+            medium: '#ffff00',  // Yellow (60-79%)
+            low: '#ff6600',     // Orange (40-59%)
+            critical: '#ff0000' // Red (<40%)
+        };
+        
+        let color;
+        if (momentum >= 80) color = colors.high;
+        else if (momentum >= 60) color = colors.medium;
+        else if (momentum >= 40) color = colors.low;
+        else color = colors.critical;
+        
+        this.domElements.momentumDisplay.style.color = color;
+    }    getAdjustedSpeed() {
         return this.gameState.currentSpeed * (this.gameState.momentum / 100);
     }
 
-    // Building system - creates rooftops with gaps and varying heights
+    // --- BUILDING SYSTEM ---
+    // Creates rooftops with gaps and varying heights
     initializeBuildings() {
         this.buildingGroup = this.add.group({
-            removeCallback: function(building) {
+            removeCallback: (building) => {
                 building.scene.buildingPool.add(building);
             }
         });
 
         this.buildingPool = this.add.group({
-            removeCallback: function(building) {
+            removeCallback: (building) => {
                 building.scene.buildingGroup.add(building);
             }
-        });        // Create initial buildings
+        });
+
         this.createInitialRooftops();
-        // Set originY to match the first (landing) platform exactly
         this.originY = this.landingPlatformY - 50;
-    }    createInitialRooftops() {
+    }
+
+    createInitialRooftops() {
         const screenWidth = this.sys.game.config.width;
         let currentX = 0;
         
-        // Create the guaranteed landing platform first
-        // This ensures player always has a safe landing spot after the cinematic
-        const landingPlatformWidth = 600; // Even wider for 100% reliability
+        // Create guaranteed landing platform first
+        const landingPlatformWidth = 600;
         const landingPlatformHeight = this.calculateNextBuildingHeight(true);
-        
-        // Store the landing platform height for precise player positioning
         this.landingPlatformY = landingPlatformHeight;
         
-        // Position the landing platform to guarantee player catch
-        // Make it wide enough and positioned to ensure 100% catch rate
+        // Position landing platform to guarantee player catch
         const playerStartX = window.stage2Options.playerStartPosition;
-        const landingStartX = Math.max(0, playerStartX - 200); // Start even further left
+        const landingStartX = Math.max(0, playerStartX - 200);
         const landingEndX = landingStartX + landingPlatformWidth;
         
-        // Ensure the landing platform extends well past the player start position
+        // Ensure platform extends past player start position
         if (landingEndX < playerStartX + 100) {
             const extendedWidth = landingPlatformWidth + 200;
             this.addBuilding(landingStartX, landingPlatformHeight, extendedWidth);
@@ -263,9 +304,8 @@ class Stage2 extends Phaser.Scene {
             currentX = landingEndX;
         }
         
-        // Create 4 additional buildings with normal random gaps after the landing platform
+        // Create 4 additional buildings with random gaps
         for (let i = 1; i < 5; i++) {
-            // Add gap before next building
             const gapSize = Phaser.Math.Between(
                 window.stage2Options.minBuildingGap, 
                 window.stage2Options.maxBuildingGap
@@ -284,7 +324,8 @@ class Stage2 extends Phaser.Scene {
         if (isFirst) {
             return this.sys.game.config.height * 0.8;
         }
-          // Create height variation for interesting jumps
+
+        // Create height variation for interesting jumps
         const baseHeight = this.sys.game.config.height * 0.8;
         const variation = window.stage2Options.buildingHeightVariation;
         const heightChange = Phaser.Math.Between(-variation, variation);
@@ -297,8 +338,12 @@ class Stage2 extends Phaser.Scene {
         
         this.gameState.lastBuildingHeight = Phaser.Math.Clamp(newHeight, minHeight, maxHeight);
         return this.gameState.lastBuildingHeight;
-    }    addBuilding(xPosition, yPosition, width) {
+    }
+
+    addBuilding(xPosition, yPosition, width) {
         let building;
+        
+        // Reuse from pool or create new
         if (this.buildingPool.getLength()) {
             building = this.buildingPool.getFirst();
             building.x = xPosition + width/2;
@@ -314,18 +359,18 @@ class Stage2 extends Phaser.Scene {
         
         building.displayWidth = width;
         building.setVelocityX(this.getAdjustedSpeed() * -1);
-        building.setTint(0x666666); // Gray buildings for urban feel
-        
-        // Initialize building's obstacle array if it doesn't exist
+        building.setTint(0x666666);
+          // Initialize building's obstacle array
         if (!building.obstacles) {
             building.obstacles = [];
         }
         
-        // Randomly add obstacles to this building
         this.addObstaclesToBuilding(building);
-        
         return building;
-    }    // Setup player for rooftop running
+    }
+
+    // --- PLAYER SETUP ---
+
     setupPlayer() {
         // Position player to land exactly on the landing platform
         // Use a slight offset above the platform to ensure clean landing
@@ -338,26 +383,24 @@ class Stage2 extends Phaser.Scene {
         );
         this.player.setGravityY(window.stage2Options.playerGravity);
         this.player.setCollideWorldBounds(true, false, false, false, true);
-        this.playerJumps = 0;
-        this.jumpTimer = 0;
-        this.jumpBufferDuration = 150;
-        
-        this.player.setTint(0x0088ff); // Jayceon's blue color
         
         // Wait for texture to load, then align feet to platform
         this.player.on('texturecomplete', () => {
             this.player.y = this.landingPlatformY - (this.player.displayHeight / 2) + 4; // +4 for fine-tuning
             this.player.body.setSize(60, 90);
             this.player.body.setOffset(66, 0); // y offset 0, so feet match collision box
-        });
-        // If already loaded, set immediately
+        });        // If already loaded, set immediately
         if (this.player.texture.key) {
             this.player.y = this.landingPlatformY - (this.player.displayHeight / 2) + 4;
             this.player.body.setSize(60, 90);
             this.player.body.setOffset(66, 0);
         }
+        
         this.player.anims.play('run');
-    }// Setup rooftop obstacles (air conditioners, satellite dishes, etc.)
+    }
+
+    // --- OBSTACLE SYSTEM ---
+    // Setup rooftop obstacles (air conditioners, satellite dishes, etc.)
     setupObstacles() {
         // Create different types of obstacles
         this.obstacleTypes = [
@@ -447,10 +490,12 @@ class Stage2 extends Phaser.Scene {
             const index = obstacle.parentBuilding.obstacles.indexOf(obstacle);
             if (index > -1) {
                 obstacle.parentBuilding.obstacles.splice(index, 1);
-            }
-        }
-          obstacle.parentBuilding = null;
+            }        }
+        
+        obstacle.parentBuilding = null;
     }
+
+    // --- INPUT HANDLING ---
 
     setupInput() {
         this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
@@ -469,123 +514,109 @@ class Stage2 extends Phaser.Scene {
         this.input.on('pointerup', (pointer) => {
             if (pointer.target !== this.sys.game.canvas) {
                 return;
-            }
-            this.pointerIsDown = false;
+            }            this.pointerIsDown = false;
+        });    }
+
+    // --- MOBILE CONTROLS SETUP ---
+    setupMobileControls() {
+        this.setupJumpButtonControls();
+        this.setupDashButtonControls();
+        this.setupGameOverButtonControls();
+        this.setupKeyboardHideHandler();
+    }
+
+    setupJumpButtonControls() {
+        if (!this.domElements.jumpButton) return;
+
+        const jumpEvents = ['touchstart', 'mousedown'];
+        const releaseEvents = ['touchend', 'mouseup'];
+
+        jumpEvents.forEach(event => {
+            this.domElements.jumpButton.addEventListener(event, (e) => {
+                e.preventDefault();
+                if (this.gameState.gameOver || this.gameState.gameComplete) return;
+                this.pointerIsDown = true;
+                this.pointerJustDown = true;
+                this.jumpStartTime = this.time.now;
+            });
+        });
+
+        releaseEvents.forEach(event => {
+            this.domElements.jumpButton.addEventListener(event, (e) => {
+                e.preventDefault();
+                this.pointerIsDown = false;
+                this.jumpHoldTime = 0;
+            });
         });
     }
 
-    setupMobileControls() {
-        const scene = this;
+    setupDashButtonControls() {
+        if (!this.domElements.dashButton) return;
 
-        // Jump button controls
-        if (this.domElements.jumpButton) {
-            this.domElements.jumpButton.addEventListener('touchstart', function(e) {
-                e.preventDefault();
-                if (scene.gameState.gameOver || scene.gameState.gameComplete) return;
-                scene.pointerIsDown = true;
-                scene.pointerJustDown = true;
-                scene.jumpStartTime = scene.time.now;
-            });
-            
-            this.domElements.jumpButton.addEventListener('mousedown', function(e) {
-                e.preventDefault();
-                if (scene.gameState.gameOver || scene.gameState.gameComplete) return;
-                scene.pointerIsDown = true;
-                scene.pointerJustDown = true;
-                scene.jumpStartTime = scene.time.now;
-            });
-            
-            this.domElements.jumpButton.addEventListener('touchend', function(e) {
-                e.preventDefault();
-                scene.pointerIsDown = false;
-                scene.jumpHoldTime = 0;
-            });
-            
-            this.domElements.jumpButton.addEventListener('mouseup', function(e) {
-                e.preventDefault();
-                scene.pointerIsDown = false;
-                scene.jumpHoldTime = 0;
-            });
-        }
+        const dashEvents = ['touchstart', 'mousedown'];
 
-        // Dash button controls
-        if (this.domElements.dashButton) {
-            this.domElements.dashButton.addEventListener('touchstart', function(e) {
+        dashEvents.forEach(event => {
+            this.domElements.dashButton.addEventListener(event, (e) => {
                 e.preventDefault();
-                if (scene.gameState.gameOver || scene.gameState.gameComplete) return;
-                if (scene.dashReady && scene.isPlayerGrounded()) {
-                    scene.doDash();
-                    scene.dashReady = false;
-                    scene.lastDashTime = scene.time.now;
+                if (this.gameState.gameOver || this.gameState.gameComplete) return;
+                if (this.dashReady && this.isPlayerGrounded()) {
+                    this.doDash();
+                    this.dashReady = false;
+                    this.lastDashTime = this.time.now;
                 }
             });
+        });
+    }
 
-            this.domElements.dashButton.addEventListener('mousedown', function(e) {
-                e.preventDefault();
-                if (scene.gameState.gameOver || scene.gameState.gameComplete) return;
-                if (scene.dashReady && scene.isPlayerGrounded()) {
-                    scene.doDash();
-                    scene.dashReady = false;                    scene.lastDashTime = scene.time.now;
-                }
-            });
-        }
-          // Game over button controls - Fixed with proper context and touchstart events  
-        if (this.domElements.gameOverRestartButtonMobile) {
-            this.domElements.gameOverRestartButtonMobile.addEventListener('click', () => {
-                if (this.gameState.gameOver || this.gameState.gameComplete) {
-                    if (this.sceneTransitioning) return; // Prevent multiple transitions
-                    this.sceneTransitioning = true;
-                    if(this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
-                    if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
-                    this.scene.restart();
-                }
-            });
-            
-            this.domElements.gameOverRestartButtonMobile.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                if (this.gameState.gameOver || this.gameState.gameComplete) {
-                    if (this.sceneTransitioning) return; // Prevent multiple transitions
-                    this.sceneTransitioning = true;
-                    if(this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
-                    if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
-                    this.scene.restart();
-                }
-            });
-        }
-        
-        if (this.domElements.gameOverMenuButtonMobile) {
-            this.domElements.gameOverMenuButtonMobile.addEventListener('click', () => {
-                if (this.gameState.gameOver || this.gameState.gameComplete) {
-                    if (this.sceneTransitioning) return; // Prevent multiple transitions
-                    this.sceneTransitioning = true;
-                    if(this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
-                    if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
-                    this.scene.start("SceneSwitcher");
-                }
-            });
-            
-            this.domElements.gameOverMenuButtonMobile.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                if (this.gameState.gameOver || this.gameState.gameComplete) {
-                    if (this.sceneTransitioning) return; // Prevent multiple transitions
-                    this.sceneTransitioning = true;
-                    if(this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
-                    if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
-                    this.scene.start("SceneSwitcher");
-                }
-            });
-        }
+    setupGameOverButtonControls() {
+        this.setupGameOverButton(this.domElements.gameOverRestartButtonMobile, () => {
+            this.scene.restart();
+        });
 
-        // Hide mobile buttons when keyboard is used
+        this.setupGameOverButton(this.domElements.gameOverMenuButtonMobile, () => {
+            this.scene.start("SceneSwitcher");
+        });
+    }
+
+    setupGameOverButton(button, action) {
+        if (!button) return;
+
+        const events = ['click', 'touchstart'];
+
+        events.forEach(event => {
+            button.addEventListener(event, (e) => {
+                if (event === 'touchstart') e.preventDefault();
+                
+                if (this.gameState.gameOver || this.gameState.gameComplete) {
+                    if (this.sceneTransitioning) return;
+                    
+                    this.sceneTransitioning = true;
+                    this.hideUIElements();
+                    action();
+                }
+            });
+        });
+    }
+
+    setupKeyboardHideHandler() {
         if (this.hideOnScreenButtonsHandler) {
             window.removeEventListener('keydown', this.hideOnScreenButtonsHandler);
         }
+        
         this.hideOnScreenButtonsHandler = () => {
-            if (scene.domElements.dashButton) scene.domElements.dashButton.style.display = 'none';
-            if (scene.domElements.jumpButton) scene.domElements.jumpButton.style.display = 'none';
+            this.setButtonsVisible(false);
         };
+        
         window.addEventListener('keydown', this.hideOnScreenButtonsHandler);
-    }    setupPhysics() {
+    }
+
+    hideUIElements() {
+        if (this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';        
+        if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
+    }
+
+    // --- PHYSICS SETUP ---
+    setupPhysics() {
         // Player collision with buildings
         this.physics.add.collider(this.player, this.buildingGroup, (player, building) => {
             this.playerOnBuilding = true;
@@ -593,9 +624,11 @@ class Stage2 extends Phaser.Scene {
         
         // Player collision with obstacles - check all obstacles in pool
         this.obstaclePool.forEach(obstacle => {
-            this.physics.add.overlap(this.player, obstacle, this.hitObstacle, null, this);
-        });
-    }    // Collision with rooftop obstacles
+            this.physics.add.overlap(this.player, obstacle, this.hitObstacle, null, this);        });    
+    }
+
+    // --- COLLISION HANDLING ---
+    // Collision with rooftop obstacles
     hitObstacle(player, obstacle) {
         // Skip collision if obstacle is not active
         if (!obstacle.active) return;
@@ -629,9 +662,8 @@ class Stage2 extends Phaser.Scene {
             
             obstacle.isHit = true;
             this.time.delayedCall(500, () => {
-                obstacle.isHit = false;
-            });
-        }
+                obstacle.isHit = false;            });
+        }    
     }
 
     // Check if player has fallen into a pit
@@ -640,11 +672,12 @@ class Stage2 extends Phaser.Scene {
         const pitfallThreshold = this.sys.game.config.height * 0.95;
         
         if (this.player.y > pitfallThreshold) {
-            this.triggerGameOver("You fell between the buildings!");
-            return true;
+            this.triggerGameOver("You fell between the buildings!");            return true;
         }
-        return false;
-    }    // Missile chase mechanics (same as Stage 1)
+        return false;    
+    }
+
+    // --- MISSILE CHASE MECHANICS ---
     updateMissileChase(delta) {
         this.gameState.missilePosition += (window.stage2Options.missileSpeed * delta) / 1000;
         this.gameState.missilePosition = Math.min(100, this.gameState.missilePosition);
@@ -664,11 +697,12 @@ class Stage2 extends Phaser.Scene {
     checkStageCompletion() {
         if (this.gameState.stageProgress >= 100 && !this.gameState.gameComplete && !this.gameState.gameOver) {
             this.completeStage("You caught the missile on the rooftops!");
-        }
-        else if (this.gameState.missilePosition >= 100 && !this.gameState.gameComplete && !this.gameState.gameOver) {
+        }        else if (this.gameState.missilePosition >= 100 && !this.gameState.gameComplete && !this.gameState.gameOver) {
             this.triggerGameOver("The missile escaped into the sky!");
-        }
-    }    completeStage(reason) {
+        }    }    
+
+    // --- STAGE COMPLETION ---
+    completeStage(reason) {
         this.gameState.gameComplete = true;
         this.gameState.completionReason = reason;
         
@@ -701,14 +735,15 @@ class Stage2 extends Phaser.Scene {
         // Hide completion screen after delay - no automatic transition since this is the final stage
         this.time.delayedCall(5000, () => {
             if (this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
-            if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
-        });
+            if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';        });
     }
 
     updateScore(points = 15) {
         this.gameState.score += points;
         this.gameState.obstaclesAvoided++;
-    }    triggerGameOver(reason) {
+    }    
+
+    triggerGameOver(reason) {
         this.gameState.gameOver = true;
         this.physics.pause();
         
@@ -722,11 +757,10 @@ class Stage2 extends Phaser.Scene {
             this.domElements.gameOverScreen.style.display = 'block';
         }
         
-        this.cameras.main.shake(500, 0.025);
-        this.player.setTint(0xff0000);
+        this.cameras.main.shake(500, 0.025);        this.player.setTint(0xff0000);
     }
 
-    // Jump and movement mechanics
+    // --- JUMP AND MOVEMENT MECHANICS ---
     handleJumpOrDive() {
         if (this.gameState.gameOver || this.gameState.gameComplete) return;
         
@@ -739,8 +773,7 @@ class Stage2 extends Phaser.Scene {
                 console.log("✅ ROOFTOP DASH JUMP!");
                 this.dashJump();
                 return;
-            }
-              console.log("✅ ROOFTOP JUMP");
+            }              console.log("✅ ROOFTOP JUMP");
             this.player.setVelocityY(window.stage2Options.jumpForce * -1);
             this.isDiving = false;
             this.isJumping = true;
@@ -761,6 +794,7 @@ class Stage2 extends Phaser.Scene {
         return this.player.body.touching.down || this.player.body.blocked.down;
     }
 
+    // --- DASH MECHANICS ---
     // Dash mechanics (adapted from Stage 1)
     doDash() {
         console.log("=== ROOFTOP DASH ===");
@@ -772,10 +806,10 @@ class Stage2 extends Phaser.Scene {
         this.tweens.killTweensOf(this.player);
         
         if (this.isDashJumpReturning || this.isReturningFromDashJump) {
-            this.isDashJumpReturning = false;
-            this.isReturningFromDashJump = false;
+            this.isDashJumpReturning = false;            this.isReturningFromDashJump = false;
         }
-          const dashDistance = Phaser.Math.Between(30, 90); // Slightly longer dashes on rooftops
+          
+        const dashDistance = Phaser.Math.Between(30, 90); // Slightly longer dashes on rooftops
         const targetX = Math.max(
             window.stage2Options.playerStartPosition,
             Math.min(
@@ -803,8 +837,8 @@ class Stage2 extends Phaser.Scene {
             if (this.isPlayerGrounded()) {
                 this.player.setVelocityX(0);
             }
-            
-            this.time.delayedCall(this.dashJumpWindow, () => {                if (!this.isDashJumping && !this.isReturningFromDashJump) {
+              this.time.delayedCall(this.dashJumpWindow, () => {
+                if (!this.isDashJumping && !this.isReturningFromDashJump) {
                     this.tweens.add({
                         targets: this.player,
                         x: window.stage2Options.playerStartPosition,
@@ -828,10 +862,10 @@ class Stage2 extends Phaser.Scene {
 
     dashJump() {
         console.log("🚀 === ROOFTOP DASH JUMP! ===");
-        
-        this.tweens.killTweensOf(this.player);
+          this.tweens.killTweensOf(this.player);
         this.isDashTweening = false;
-          this.player.setVelocityY(window.stage2Options.jumpForce * -1);
+          
+        this.player.setVelocityY(window.stage2Options.jumpForce * -1);
         this.player.setVelocityX(this.dashJumpHorizontalBoost);
         
         this.isDashJumping = true;
@@ -856,9 +890,10 @@ class Stage2 extends Phaser.Scene {
         const timeSinceDash = this.time.now - this.lastDashTime;
         const withinWindow = timeSinceDash <= (this.dashDuration + this.dashJumpWindow);
         const canJump = withinWindow && !this.isDashJumping;
-        
-        return canJump;
-    }    updateAllSpeeds() {
+          return canJump;
+    }    
+
+    updateAllSpeeds() {
         const adjustedSpeed = this.getAdjustedSpeed();
         
         // Update building speeds and their obstacles
@@ -872,9 +907,10 @@ class Stage2 extends Phaser.Scene {
                         obstacle.setVelocityX(adjustedSpeed * -1);
                     }
                 });
-            }
-        });
-    }    getDynamicObstacleSpawnChance() {
+            }        });
+    }    
+
+    getDynamicObstacleSpawnChance() {
         const progress = this.gameState.stageProgress;
         const baseChance = window.stage2Options.obstacleSpawnChance;
         
@@ -885,7 +921,10 @@ class Stage2 extends Phaser.Scene {
         } else {
             return baseChance; // Base density early game
         }
-    }// Building management - create new buildings as old ones scroll off
+    }
+
+    // --- BUILDING MANAGEMENT ---
+    // Create new buildings as old ones scroll off
     manageBuildings() {
         let rightmostX = -Infinity;
         
@@ -924,8 +963,7 @@ class Stage2 extends Phaser.Scene {
             const buildingHeight = this.calculateNextBuildingHeight();
             
             this.addBuilding(currentX, buildingHeight, buildingWidth);
-            currentX += buildingWidth;
-              // Add gap between buildings
+            currentX += buildingWidth;              // Add gap between buildings
             if (i < numBuildings - 1) {
                 const gapSize = Phaser.Math.Between(
                     window.stage2Options.minBuildingGap,
@@ -941,9 +979,9 @@ class Stage2 extends Phaser.Scene {
         this.isDashJumpReturning = true;
         
         this.tweens.killTweensOf(this.player);
-        
-        this.dashInvulnerable = true;
-          this.tweens.add({
+          this.dashInvulnerable = true;
+          
+        this.tweens.add({
             targets: this.player,
             x: window.stage2Options.playerStartPosition,
             duration: 1000,
@@ -955,10 +993,11 @@ class Stage2 extends Phaser.Scene {
                 
                 if (this.isPlayerGrounded() && !this.isDashing && !this.isDashJumping && !this.isDiving) {
                     this.player.setTint(0x0088ff);
-                }
-            }
-        });
-    }    update(time, delta) {
+                }            }
+        });    }    
+
+    // --- MAIN UPDATE LOOP ---
+    update(time, delta) {
         if (this.gameState.gameOver || this.gameState.gameComplete) {
             // CRITICAL: Reset all input flags immediately during game over to prevent auto-restart
             this.pointerJustDown = false;
@@ -968,27 +1007,27 @@ class Stage2 extends Phaser.Scene {
             if (Phaser.Input.Keyboard.JustDown(this.keyR)) {
                 if (this.sceneTransitioning) return; // Prevent multiple transitions
                 this.sceneTransitioning = true;
-                if(this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
+                if(this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';                
                 this.scene.restart();
-            }if (Phaser.Input.Keyboard.JustDown(this.keyESC)) {
+            }
+            
+            if (Phaser.Input.Keyboard.JustDown(this.keyESC)) {
                 if (this.sceneTransitioning) return; // Prevent multiple transitions
                 this.sceneTransitioning = true;
                 if(this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
                 if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
                 this.scene.start("SceneSwitcher");
-            }
-            return;
+            }            return;
         }
-          if (Phaser.Input.Keyboard.JustDown(this.keyESC)) {
+          
+        if (Phaser.Input.Keyboard.JustDown(this.keyESC)) {
             if (this.sceneTransitioning) return; // Prevent multiple transitions
             this.sceneTransitioning = true;
             if (this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
             if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
             this.scene.start("SceneSwitcher");
             return;
-        }
-
-        // Check for pitfall (falling between buildings)
+        }        // Check for pitfall (falling between buildings)
         if (this.checkPitfall()) {
             return;
         }        // Position management (same logic as Stage 1)
@@ -1071,9 +1110,11 @@ class Stage2 extends Phaser.Scene {
         // Momentum recovery
         if (this.gameState.momentum < 100) {
             this.gameState.momentum = Math.min(100, 
-                this.gameState.momentum + window.gameOptions.momentumRecoveryRate);
-            this.updateAllSpeeds();
-        }        // Manage obstacles and buildings
+                this.gameState.momentum + window.gameOptions.momentumRecoveryRate);            
+                this.updateAllSpeeds();
+        }        
+
+        // Manage obstacles and buildings
         this.updateObstaclePositions();
         this.manageBuildings();
 
@@ -1098,7 +1139,9 @@ class Stage2 extends Phaser.Scene {
             this.playerOnBuilding = true;
         }
 
-        this.wasGrounded = this.isPlayerGrounded();        // Dash input handling - CRITICAL: Block during game over states
+        this.wasGrounded = this.isPlayerGrounded();        
+
+        // Dash input handling - CRITICAL: Block during game over states
         const dashPressed = this.shiftKey.isDown && this.isPlayerGrounded() && !this.isJumping && 
                            !this.gameState.gameOver && !this.gameState.gameComplete;
 
@@ -1131,9 +1174,11 @@ class Stage2 extends Phaser.Scene {
             this.player.setTint(0x00ff00); // Green when jumping
         }
 
-        this.updateUI();
-        this.pointerJustDown = false;
-    }    shutdown() {
+        this.updateUI();        
+        this.pointerJustDown = false;    }    
+
+    // --- CLEANUP ---
+    shutdown() {
         // Clean up obstacle pool
         if (this.obstaclePool) {
             this.obstaclePool.forEach(obstacle => {
@@ -1171,9 +1216,9 @@ class Stage2 extends Phaser.Scene {
         
         // Cancel any pending scene transitions
         if (this.scene.scene.time) {
-            this.scene.scene.time.removeAllEvents();
-        }
+            this.scene.scene.time.removeAllEvents();        }
     }
 }
 
+// --- STAGE 2 EXPORT ---
 window.Stage2 = Stage2;

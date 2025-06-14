@@ -36,20 +36,20 @@
                 <div class="game-over-reason" id="gameOverReason">Time's up!</div>
                 <div class="game-over-score" id="gameOverScore">Final Score: 0</div>
                 <div class="game-over-controls">
-                    <!-- Mobile/Touch Controls Added -->
+                    <!-- Mobile/Touch Controls -->
                     <button id="gameOverRestartButtonMobile" class="game-over-btn" tabindex="0" aria-label="Restart game">RESTART</button>
                     <button id="gameOverMenuButtonMobile" class="game-over-btn" tabindex="0" aria-label="Return to main menu">MENU</button>
-                    <!-- Keyboard Instructions (original) -->
+                    <!-- Keyboard Instructions -->
                     <div class="keyboard-instructions" id="gameOverKeyboardInstructions">
                         Press R to restart<br>
                         Press ESC for main menu
                     </div>
                 </div> 
             </div>
-            <button id="jumpButton" class="jump-btn" tabindex="0" aria-label="Jump">🦘</button> <!-- Added Jump Button -->
+            <button id="jumpButton" class="jump-btn" tabindex="0" aria-label="Jump">🦘</button> 
             <button id="dashButton" class="dash-btn" tabindex="0" aria-label="Dash">🏃‍♂️</button>
         </div>
-        <!-- Load Phaser first (no defer), then utilities and scenes with defer, then main -->
+        <!-- Load Phaser first (no defer...NO DEFER), then utilities and scenes with defer, then main, OPPOSITE of the way in your head -->
         <script src="./scenes/phaser.min.js"></script>
         <script defer src="./utils/accessibility.js"></script>
         <script defer src="./scenes/sceneswitcher.js"></script>

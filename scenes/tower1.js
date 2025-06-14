@@ -10,11 +10,8 @@ window.tower1Options = {
     maxJumpHold: 250,                          // Longer jump hold for more control
     jumpHoldForce: 6000,                       // Jump hold force
     playerStartPosition: 100,                  // Start near left side
-    playerStartHeight: 190,                    // How far from bottom to start (pixels) - HIGHER START
+    playerStartHeight: 190,                    // How far from bottom to start (pixels) - HIGHER START    
     bounceVelocity: 250,                       // Velocity when bouncing off walls
-    wallSlideMaxSpeed: 200,                    // Maximum speed when sliding down walls
-    wallSlideSpeed: 150,                       // Wall slide speed (used in update method)
-    wallSlideResistance: 0.9,                  // Wall slide friction
     stageDuration: 120,                        // More time for forgiving climb (was 90)
     stageTargetHeight: 1200,                   // Target height to reach (pixels up from start)
     momentumLossPerCollision: 0,               // No momentum loss - no pedestrians here
@@ -131,11 +128,10 @@ class tower1 extends Phaser.Scene {
           // Initialize movement state
         this.isJumping = false;
         this.jumpHoldTime = 0;
-        this.isOnGround = false;
-        this.isOnWall = false;
-        this.wallSide = null; // 'left' or 'right'        this.lastWallContact = 0;
+        this.isOnGround = false;        this.isOnWall = false;
+        this.wallSide = null; // 'left' or 'right'
+        this.lastWallContact = 0;
         this.canWallJump = false;
-        this.isWallSliding = false;
         this.lastGroundHeight = 0; // Start at 0 height - will be updated properly by updateHeightProgress
         
         // Dash state initialization (from Stage1/2)
@@ -267,13 +263,9 @@ class tower1 extends Phaser.Scene {
             stateColor = '#ff8800';
         } else if (this.dashInvulnerable) {
             stateText = 'INVULNERABLE';
-            stateColor = '#88ffff';
-        } else if (this.isDiving) {
+            stateColor = '#88ffff';        } else if (this.isDiving) {
             stateText = 'DIVING';
             stateColor = '#ffff00';
-        } else if (this.isWallSliding) {
-            stateText = 'WALL SLIDE';
-            stateColor = '#ffaa00';
         } else if (this.canWallJump) {
             stateText = 'WALL READY';
             stateColor = '#00ff00';
@@ -337,7 +329,8 @@ class tower1 extends Phaser.Scene {
         this.platforms.add(floor);
         
         // Create ceiling (goal)
-        let ceiling = this.add.rectangle(towerCenterX, -window.tower1Options.stageTargetHeight + 25, towerWidth - 100, 50, 0x00ff00);        this.physics.add.existing(ceiling, true);
+        let ceiling = this.add.rectangle(towerCenterX, -window.tower1Options.stageTargetHeight + 25, towerWidth - 100, 50, 0x00ff00);
+        this.physics.add.existing(ceiling, true);
         this.platforms.add(ceiling);
         ceiling.isGoal = true;        
         
@@ -597,12 +590,10 @@ class tower1 extends Phaser.Scene {
                 this.completeStage("You escaped the tower!");
                 return;
             }
-            
-            // CRITICAL: Reset ALL states when landing to ensure player can always jump
+              // CRITICAL: Reset ALL states when landing to ensure player can always jump
             this.isOnGround = true;
             this.isOnWall = false;
             this.wallSide = null;
-            this.isWallSliding = false;
             this.canWallJump = false; // Reset to prevent jump blocking
             this.isJumping = false;
             this.jumpHoldTime = 0;
@@ -627,21 +618,13 @@ class tower1 extends Phaser.Scene {
         this.physics.add.collider(this.player, this.rightWall, (player, wall) => {
             this.handleWallContact('right');
         });
-    }
-
-    handleWallContact(side) {
+    }    handleWallContact(side) {
         this.isOnWall = true;
         this.wallSide = side;
         this.lastWallContact = this.time.now;
         this.canWallJump = true;
-          // Wall sliding mechanics
-        if (!this.isOnGround && this.player.body.velocity.y > 0) {
-            this.isWallSliding = true;
-            // Reduce falling speed when sliding on wall
-            if (this.player.body.velocity.y > window.tower1Options.wallSlideMaxSpeed) {
-                this.player.body.velocity.y *= window.tower1Options.wallSlideResistance;
-            }
-        }        // Bounce off wall and reverse running direction
+
+        // Bounce off wall and reverse running direction
         if (side === 'left') {
             this.runDirection = 1; // Now run right
             this.player.setVelocityX(window.tower1Options.bounceVelocity);
@@ -682,15 +665,13 @@ class tower1 extends Phaser.Scene {
         // Ground jump - second priority, but only if not in dash jump window
         if (this.isOnGround && !this.canDashJump()) {
             console.log("✅ GROUND JUMP - Force resetting any blocking states");
-            
-            // Force reset ANY state that might block jumping
-            if (this.isDashing || this.isDashTweening || this.isDiving || this.isWallSliding || this.canWallJump) {
+              // Force reset ANY state that might block jumping
+            if (this.isDashing || this.isDashTweening || this.isDiving || this.canWallJump) {
                 console.log("🔄 Force clearing blocking states for ground jump");
                 this.tweens.killTweensOf(this.player);
                 this.isDashing = false;
                 this.isDashTweening = false;
                 this.isDiving = false;
-                this.isWallSliding = false;
                 this.canWallJump = false;
                 this.wallSide = null;
             }
@@ -757,11 +738,9 @@ class tower1 extends Phaser.Scene {
         
         this.gameState.wallJumpsPerformed++;
         this.gameState.score += 10;
-        
-        // Reset states for clean wall jump
+          // Reset states for clean wall jump
         this.isOnWall = false;
         this.canWallJump = false;
-        this.isWallSliding = false;
         this.wallSide = null;
         this.isJumping = true;
         this.jumpHoldTime = 0;
@@ -872,11 +851,9 @@ class tower1 extends Phaser.Scene {
             } else if (this.wallSide === 'right') {
                 jumpDirection = -1; // Jump left from right wall
             }
-            
-            // Reset wall states
+              // Reset wall states
             this.isOnWall = false;
             this.canWallJump = false;
-            this.isWallSliding = false;
             this.wallSide = null;
         }
           // Apply forces
@@ -1122,11 +1099,9 @@ class tower1 extends Phaser.Scene {
         }
 
         // Reset ground state each frame (will be set to true by collision)
-        this.isOnGround = false;
-          // Reset wall state if not touching walls recently
+        this.isOnGround = false;        // Reset wall state if not touching walls recently
         if (this.time.now - this.lastWallContact > 100) {
             this.isOnWall = false;
-            this.isWallSliding = false;
             this.canWallJump = false;
             this.wallSide = null;
         }
@@ -1169,9 +1144,8 @@ class tower1 extends Phaser.Scene {
                 // Give some residual horizontal momentum
                 const finalDirection = this.player.body.velocity.x > 0 ? 1 : -1;
                 this.player.setVelocityX(finalDirection * 150);
-            }
-        }// Auto-running mechanics - only when not in special states (including diving)
-        if (!this.isOnWall && !this.isWallSliding && !this.isDashing && !this.isDashJumping && !this.isDiving) {
+            }        }        // Auto-running mechanics - only when not in special states (including diving)
+        if (!this.isDashing && !this.isDashJumping && !this.isDiving) {
             // Apply momentum boost if active
             let currentRunSpeed = this.runSpeed;
             if (this.hasMomentumBoost) {
@@ -1204,16 +1178,14 @@ class tower1 extends Phaser.Scene {
         this.updateHeightProgress();        // Ground state changes - ensure player can always jump when landing
         if (this.isOnGround && !this.wasGrounded) {
             console.log("🛬 Just landed - resetting all jump-blocking states");
-            
-            // ADDITIONAL SAFETY: Force reset ALL blocking states when transitioning to ground
-            if (this.isDiving || this.isDashing || this.isDashTweening || this.canWallJump || this.isWallSliding) {
+              // ADDITIONAL SAFETY: Force reset ALL blocking states when transitioning to ground
+            if (this.isDiving || this.isDashing || this.isDashTweening || this.canWallJump) {
                 console.log("🔧 SAFETY: Force clearing ALL states that could block ground jumping");
                 this.tweens.killTweensOf(this.player);
                 this.isDiving = false;
                 this.isDashing = false;
                 this.isDashTweening = false;
                 this.canWallJump = false;
-                this.isWallSliding = false;
                 this.wallSide = null;
             }
             
@@ -1238,13 +1210,9 @@ class tower1 extends Phaser.Scene {
         } else if (this.hasMomentumBoost) {
             this.player.setTint(0xff8800); // Orange during momentum boost
         } else if (this.dashInvulnerable) {
-            this.player.setTint(0x88ffff); // Light cyan when invulnerable
+            this.player.setTint(0x88ffff); // Light cyan when invulnerable        
         } else if (this.isDiving) {
             this.player.setTint(0xffff00); // Yellow during dive
-        } else if (this.canWallJump && this.isWallSliding) {
-            this.player.setTint(0xffaa00); // Orange when can wall jump while sliding
-        } else if (this.isWallSliding) {
-            this.player.setTint(0xffff00); // Yellow when sliding
         } else if (this.isOnGround) {
             this.player.setTint(0x0088ff); // Blue when grounded
         } else if (this.isJumping) {
