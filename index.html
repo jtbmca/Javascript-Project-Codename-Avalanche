@@ -1,9 +1,12 @@
 <!DOCTYPE html>
-<html>
-	<head>
-        <link rel="stylesheet" href="./css/styles.css">
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Avalanche</title>
+    <link rel="stylesheet" href="./css/styles.css">
 </head>
-	<body>
+<body>
         <!-- Game UI Overlay -->
         <div class="game-ui" id="gameUI">
             <div class="ui-top">
@@ -18,7 +21,7 @@
                 </div>
             </div>
             
-            <div class="instructions" id="instructionsDisplay" style="display: none;">
+            <div class="instructions" id="instructionsDisplay">
                 <strong>Street Runner</strong><br>
                 Avoid pedestrians on the busy street!<br>
                 <br>
@@ -49,7 +52,8 @@
             <button id="jumpButton" class="jump-btn" tabindex="0" aria-label="Jump">🦘</button> 
             <button id="dashButton" class="dash-btn" tabindex="0" aria-label="Dash">🏃‍♂️</button>
         </div>
-        <!-- Load Phaser first (no defer...NO DEFER), then utilities and scenes with defer, then main, OPPOSITE of the way in your head -->
+        
+        <!-- Scripts: Load Phaser first, then utilities and scenes with defer, then main -->
         <script src="./scenes/phaser.min.js"></script>
         <script defer src="./utils/accessibility.js"></script>
         <script defer src="./scenes/sceneswitcher.js"></script>
@@ -57,6 +61,5 @@
         <script defer src="./scenes/tower1.js"></script>
         <script defer src="./scenes/stage2.js"></script>
         <script defer src="main.js"></script>
-
-	</body>
-    </html>
+</body>
+</html>

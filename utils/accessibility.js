@@ -35,13 +35,13 @@ class AccessibilityManager {
                     this.setGameOverScreenActive(isVisible);
                 }
             });
-        });
-
-        observer.observe(gameOverScreen, {
+        });        observer.observe(gameOverScreen, {
             attributes: true,
             attributeFilter: ['style']
         });
-    }    // Handle navigation when game over screen is active
+    }
+
+    // Handle navigation when game over screen is active
     handleGameOverNavigation(e) {
         const restartBtn = document.getElementById('gameOverRestartButtonMobile');
         const menuBtn = document.getElementById('gameOverMenuButtonMobile');

@@ -11,18 +11,19 @@ let gameConfig = {
 
 window.game = new Phaser.Game(gameConfig);
 
-function resize(){
+function resize() {
     let canvas = document.querySelector("canvas");
     if (!canvas || !window.game || !window.game.config) return;
+    
     let windowWidth = window.innerWidth;
     let windowHeight = window.innerHeight;
     let windowRatio = windowWidth / windowHeight;
     let gameRatio = window.game.config.width / window.game.config.height;
-    if(windowRatio < gameRatio){
+    
+    if (windowRatio < gameRatio) {
         canvas.style.width = windowWidth + "px";
         canvas.style.height = (windowWidth / gameRatio) + "px";
-    }
-    else{
+    } else {
         canvas.style.width = (windowHeight * gameRatio) + "px";
         canvas.style.height = windowHeight + "px";
     }

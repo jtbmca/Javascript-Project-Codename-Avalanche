@@ -1,8 +1,10 @@
 class SceneSwitcher extends Phaser.Scene {
     constructor() {
         super({ key: "SceneSwitcher" });
-        this.sceneTransitioning = false; // Prevent multiple simultaneous scene starts
-    }    create() {
+        this.sceneTransitioning = false;
+    }
+
+    create() {
         // Reset transition flag when entering scene switcher
         this.sceneTransitioning = false;
         
@@ -23,16 +25,16 @@ class SceneSwitcher extends Phaser.Scene {
         this.add.text(centerX, centerY - 100, "STAGE SELECTOR", {
             font: "48px Arial",
             fill: "#fff",
-            align: 'center'
-        }).setOrigin(0.5);
-          // Add instructions
+            align: 'center'        }).setOrigin(0.5);
+        
+        // Add instructions
         this.add.text(centerX, centerY, "Press 1 for Stage 1 (Street Runner)\nPress 2 for Tower 1 (Platform Jumper)\nPress 3 for Stage 2 (Rooftop Jump)", {
             font: "24px Arial",
             fill: "#fff",
             align: 'center',
-            lineSpacing: 10
-        }).setOrigin(0.5);
-          // Add additional help text
+            lineSpacing: 10        }).setOrigin(0.5);
+        
+        // Add additional help text
         this.add.text(centerX, centerY + 100, "Press ESC from any stage to return here", {
             font: "18px Arial",
             fill: "#aaa",
@@ -49,9 +51,9 @@ class SceneSwitcher extends Phaser.Scene {
 
         this.keyNumpad1 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.NUMPAD_ONE);
         this.keyNumpad2 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.NUMPAD_TWO);
-        this.keyNumpad3 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.NUMPAD_THREE);
+        this.keyNumpad3 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.NUMPAD_THREE);        this.keyESC = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
 
-        this.keyESC = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);        // --- MOBILE FRIENDLY BUTTONS ---
+        // Mobile friendly buttons
         const buttonConfig = {
             font: "24px Arial",
             fill: "#222",
@@ -87,9 +89,7 @@ class SceneSwitcher extends Phaser.Scene {
             .setInteractive()
             .on('pointerdown', () => {
                 this.startScene("Stage2");
-            });
-            
-        // Add hover effects for better interaction feedback
+            });        // Add hover effects for better interaction feedback
         [stage1Button, tower1Button, stage2Button].forEach(button => {
             button.on('pointerover', () => {
                 button.setStyle({ backgroundColor: "#cccccc" });
@@ -104,10 +104,12 @@ class SceneSwitcher extends Phaser.Scene {
             console.log("Starting Stage 1...");
             this.startScene("Stage1");
         }
-          if (Phaser.Input.Keyboard.JustDown(this.key2) || Phaser.Input.Keyboard.JustDown(this.keyNumpad2)) {
+        
+        if (Phaser.Input.Keyboard.JustDown(this.key2) || Phaser.Input.Keyboard.JustDown(this.keyNumpad2)) {
             console.log("Starting tower1...");
             this.startScene("tower1");
         }
+        
         if (Phaser.Input.Keyboard.JustDown(this.key3) || Phaser.Input.Keyboard.JustDown(this.keyNumpad3)) {
             console.log("Starting Stage 2...");
             this.startScene("Stage2");

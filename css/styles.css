@@ -23,10 +23,10 @@ canvas {
     left: 0;
     width: 100%;
     height: 100%;
-    pointer-events: none; /* Default to none for overlay */
+    pointer-events: none;
     z-index: 10;
     color: white;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
 }
 
 .ui-top {
@@ -73,11 +73,12 @@ canvas {
 
 .momentum-display {
     font-size: 18px;
-    color: #ff00ff; /* Original color */
+    color: #ff00ff;
 }
 
+/* Instructions - Initially hidden */
 .instructions {
-    display: none; /* Initially hidden */
+    display: none;
     position: absolute;
     top: 50%;
     left: 50%;
@@ -85,7 +86,7 @@ canvas {
     text-align: center;
     font-size: 16px;
     color: #cccccc;
-    background: rgba(0,0,0,0.7);
+    background: rgba(0, 0, 0, 0.7);
     padding: 15px;
     border-radius: 8px;
     max-width: 400px;
@@ -98,12 +99,11 @@ canvas {
     left: 50%;
     transform: translate(-50%, -50%);
     text-align: center;
-    background: rgba(0,0,0,0.9);
+    background: rgba(0, 0, 0, 0.9);
     padding: 40px;
     border-radius: 12px;
-    border: 3px solid #ff0000;
-    display: none;
-    pointer-events: auto; /* Allow clicks on game over screen elements */
+    border: 3px solid #ff0000;    display: none;
+    pointer-events: auto;
 }
 
 .game-over-title {
@@ -130,17 +130,17 @@ canvas {
     color: #cccccc;
 }
 
-/* Game Over Buttons Added */
+/* Game Over Buttons */
 .game-over-btn {
     padding: 12px 24px;
     font-size: 1.1em;
     border-radius: 8px;
-    background-color: #333; /* Simple styling */
+    background-color: #333;
     color: white;
     border: 2px solid #555;
     margin: 8px;
     cursor: pointer;
-    pointer-events: auto; /* Ensure clickable */
+    pointer-events: auto;
     min-width: 120px;
     min-height: 50px;
     touch-action: manipulation;
@@ -175,41 +175,38 @@ canvas {
     background-color: #222;
 }
 
-.keyboard-instructions { /* Original class for keyboard instructions */
+.keyboard-instructions {
     margin-top: 15px;
     font-size: 16px;
     color: #cccccc;
 }
 
-
-/* Jump Button Added */
+/* Action Buttons */
 .jump-btn {
     position: absolute;
-    bottom: 30px;
-    left: 30px; /* Position on the left */
+    bottom: 30px;    left: 30px;
     padding: 18px 32px;
     font-size: 1.5em;
     border-radius: 12px;
-    background: #4CAF50; /* Green color for jump */
+    background: #4CAF50;
     color: white;
     border: none;
     opacity: 0.85;
     z-index: 9999; 
-    pointer-events: auto; /* Ensure it can receive events */
+    pointer-events: auto;
     min-width: 80px;
     min-height: 60px;
-    touch-action: manipulation; /* Improve touch response */
+    touch-action: manipulation;
     -webkit-user-select: none;
-    user-select: none; /* Prevent text selection */
-    -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
     transition: all 0.1s ease;
 }
 
-.jump-btn:hover, .jump-btn:focus {
-    opacity: 1;
+.jump-btn:hover, .jump-btn:focus {    opacity: 1;
     transform: scale(1.05);
     background: #45a049;
-    outline: none; /* Remove default outline */
+    outline: none;
     box-shadow: 0 0 10px rgba(76, 175, 80, 0.8);
 }
 
@@ -236,23 +233,21 @@ canvas {
     background: #00ffff;
     color: #222;
     border: none;
-    opacity: 0.85;
-    z-index: 9999; 
-    pointer-events: auto; /* Ensure it can receive events */
+    opacity: 0.85;    z-index: 9999; 
+    pointer-events: auto;
     min-width: 80px;
     min-height: 60px;
-    touch-action: manipulation; /* Improve touch response */
+    touch-action: manipulation;
     -webkit-user-select: none;
-    user-select: none; /* Prevent text selection */
-    -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
     transition: all 0.1s ease;
 }
 
-.dash-btn:hover, .dash-btn:focus {
-    opacity: 1;
+.dash-btn:hover, .dash-btn:focus {    opacity: 1;
     transform: scale(1.05);
     background: #00e6e6;
-    outline: none; /* Remove default outline */
+    outline: none;
     box-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
 }
 
@@ -279,10 +274,9 @@ canvas {
         font-size: 14px; 
         padding: 10px;
         max-width: 300px;
-    }
-    .game-over-title { font-size: 36px; }
+    }    .game-over-title { font-size: 36px; }
     .game-over-reason { font-size: 20px; }
-    /* Added responsive for new buttons */
+    
     .jump-btn, .dash-btn {
         padding: 15px 25px;
         font-size: 1.2em;
@@ -295,10 +289,9 @@ canvas {
 
 @media (max-width: 480px) {
     .score-display { font-size: 20px; }
-    .level-display { font-size: 16px; }
-    .time-display { font-size: 18px; }
+    .level-display { font-size: 16px; }    .time-display { font-size: 18px; }
     .game-over-title { font-size: 28px; }
-     /* Added responsive for new buttons */
+    
     .jump-btn, .dash-btn {
         padding: 12px 20px;
         font-size: 1em;
