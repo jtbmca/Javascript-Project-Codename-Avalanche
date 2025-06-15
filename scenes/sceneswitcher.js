@@ -25,14 +25,16 @@ class SceneSwitcher extends Phaser.Scene {
         this.add.text(centerX, centerY - 100, "STAGE SELECTOR", {
             font: "48px Arial",
             fill: "#fff",
-            align: 'center'        }).setOrigin(0.5);
+            align: 'center'        
+        }).setOrigin(0.5);
         
         // Add instructions
         this.add.text(centerX, centerY, "Press 1 for Stage 1 (Street Runner)\nPress 2 for Tower 1 (Platform Jumper)\nPress 3 for Stage 2 (Rooftop Jump)", {
             font: "24px Arial",
             fill: "#fff",
             align: 'center',
-            lineSpacing: 10        }).setOrigin(0.5);
+            lineSpacing: 10        
+        }).setOrigin(0.5);
         
         // Add additional help text
         this.add.text(centerX, centerY + 100, "Press ESC from any stage to return here", {
@@ -51,7 +53,8 @@ class SceneSwitcher extends Phaser.Scene {
 
         this.keyNumpad1 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.NUMPAD_ONE);
         this.keyNumpad2 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.NUMPAD_TWO);
-        this.keyNumpad3 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.NUMPAD_THREE);        this.keyESC = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+        this.keyNumpad3 = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.NUMPAD_THREE);        
+        this.keyESC = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
 
         // Mobile friendly buttons
         const buttonConfig = {

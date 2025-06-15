@@ -29,8 +29,8 @@ class Stage1 extends Phaser.Scene {
         this.sceneTransitioning = false; // Prevent multiple scene starts
     }    preload() {
         this.load.image("platform", "./assets/sprites/platformb.png");
-        this.load.image("missile", "./assets/sprites/player.png");
-        this.load.image("sky", "./assets/sprites/sky.png");
+        this.load.image("missile", "./assets/sprites/missile.png");
+        this.load.image("sky", "./assets/sprites/bg2.jpg");
           // Load pedestrian sprites
         this.load.image("pedestrian_jaycean", "./assets/sprites/Jaycean.png");
         this.load.image("pedestrian_mandy", "./assets/sprites/Mandy.png");
@@ -73,12 +73,12 @@ class Stage1 extends Phaser.Scene {
             frameRate: 16,
             repeat: -1
         });
-        // --- END PLAYER ANIMATIONS SETUP ---
+        // --- END PLAYER ANIMATIONS SETUP ---  
+        // Add sky background - shifted left and down
 
-        // Add sky background
-        this.sky = this.add.image(0, 0, 'sky').setOrigin(0, 0).setDepth(-100);
-        this.sky.displayWidth = this.sys.game.config.width;
-        this.sky.displayHeight = this.sys.game.config.height;
+        this.sky = this.add.image(0, -30, 'sky').setOrigin(0, 0).setDepth(-100);
+        this.sky.displayWidth = this.sys.game.config.width * 1.3;
+        this.sky.displayHeight = this.sys.game.config.height * 1.3;
 
         // Initialize game state
         this.gameState = {
@@ -261,13 +261,40 @@ class Stage1 extends Phaser.Scene {
                     this.scene.start("SceneSwitcher");
                 }
             });
-        }    }
-
-    // New missile setup
+        }    }    // New missile setup
     setupMissile() {
         this.missile = this.add.sprite(0, this.sys.game.config.height * 0.15, "missile");
         this.missile.setScale(0.3);
-        this.missile.setDepth(10); // Ensure it's visible above background
+        this.missile.setDepth(10); // Ensure it's visible above background          // Add small blinking red light on the missile
+        this.missileLight = this.add.ellipse(0, 0, 4, 8, 0xff0000); // Small red ellipse, 4px wide x 8px tall
+        this.missileLight.setDepth(11); // Above the missile
+        this.missileLight.setAlpha(0.8); // Set slight opacity (80% visible)
+        
+        // Position the light on the missile (adjust x,y offset as needed for your sprite)
+        this.updateMissileLightPosition();
+        
+        // Add blinking animation to just the light
+        this.tweens.add({
+            targets: this.missileLight,
+            alpha: 0.2, // Fade to very dim
+            duration: 2000,  // Fast blink
+            yoyo: true,     // Go back to full brightness
+            repeat: -1,     // Infinite loop
+            ease: 'Sine.easeInOut'
+        });
+    }
+    
+    // Helper function to keep light positioned on missile
+    updateMissileLightPosition() {
+        if (this.missile && this.missileLight) {            // Adjust these offsets based on where you want the light on your missile sprite
+            // Positive x = right, negative x = left
+            // Positive y = down, negative y = up
+            const lightOffsetX = 27; // 25 pixels to the right of missile center (moved further right)
+            const lightOffsetY = -0; // 5 pixels above missile center
+            
+            this.missileLight.x = this.missile.x + lightOffsetX;
+            this.missileLight.y = this.missile.y + lightOffsetY;
+        }
     }
 
     // Updated UI to show missile chase progress
@@ -380,10 +407,11 @@ class Stage1 extends Phaser.Scene {
     updateMissileChase(delta) {
         // Update missile position (moves at constant rate)
         this.gameState.missilePosition += (window.gameOptions.missileSpeed * delta) / 1000;
-        this.gameState.missilePosition = Math.min(100, this.gameState.missilePosition);
-
-        // Update missile sprite position
-        this.missile.x = (this.gameState.missilePosition / 100) * this.sys.game.config.width;        // Convert delta from ms to seconds
+        this.gameState.missilePosition = Math.min(100, this.gameState.missilePosition);        // Update missile sprite position
+        this.missile.x = (this.gameState.missilePosition / 100) * this.sys.game.config.width;
+        
+        // Update missile light position to follow the missile
+        this.updateMissileLightPosition();// Convert delta from ms to seconds
         const deltaSeconds = delta / 1000;
         // Add distance traveled this frame
         this.gameState.stageDistance += this.getAdjustedSpeed() * deltaSeconds;

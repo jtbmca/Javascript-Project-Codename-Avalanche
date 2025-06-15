@@ -23,7 +23,6 @@ window.stage2Options = {
     missileSpeed: 1.65,                        // Missile speed (completes in ~60 seconds)
     momentumLossPerCollision: 20,              // Higher penalty for hitting obstacles
     momentumRecoveryRate: 0.15,                // Faster recovery on rooftops
-    // Rooftop-specific settings
     minBuildingGap: 80,                        // Minimum gap between buildings
     maxBuildingGap: 200,                       // Maximum gap between buildings
     buildingHeightVariation: 100,              // Height difference between buildings    
@@ -41,11 +40,11 @@ class Stage2 extends Phaser.Scene {
 
     // --- ASSET LOADING ---
 
-    preload() {
-        // Load building and sprites
+    preload() {        // Load building and sprites
         this.load.image("building", "./assets/sprites/platformb.png");
         this.load.image("obstacle", "./assets/sprites/player.png");
-        this.load.image("missile", "./assets/sprites/player.png");
+        this.load.image("missile", "./assets/sprites/missile.png");
+        this.load.image("bg3", "./assets/sprites/bg3.jpg");
         
         // Load player animation sprite sheets
         const sheetConfig = { frameWidth: 192, frameHeight: 108 };
@@ -119,6 +118,9 @@ class Stage2 extends Phaser.Scene {
         // Make on-screen buttons visible
         this.setButtonsVisible(true);
         
+        // Setup background first
+        this.setupBackground();
+        
         // Setup game elements in proper order
         this.setupObstacles();
         this.initializeBuildings();
@@ -126,6 +128,13 @@ class Stage2 extends Phaser.Scene {
         this.setupMissile();
         this.setupInput();
         this.setupPhysics();
+    }
+
+    setupBackground() {
+        // Add bg3 background
+        this.background = this.add.image(0, 0, 'bg3').setOrigin(0, 0).setDepth(-100);
+        this.background.displayWidth = this.sys.game.config.width;
+        this.background.displayHeight = this.sys.game.config.height;
     }
 
     setButtonsVisible(visible) {
@@ -191,17 +200,50 @@ class Stage2 extends Phaser.Scene {
             <em>🏢 Jump between buildings to catch the missile!</em><br>
             <em>🔥 The missile is getting away - GO FAST!</em>
         `;
-        
-        instructions.style.display = 'block';
+          instructions.style.display = 'block';
         this.time.delayedCall(6000, () => {
             if (instructions) instructions.style.display = 'none';
-        });
-    }    // --- MISSILE SETUP ---
+        });    }
+    
+    // --- MISSILE SETUP ---
+    
     setupMissile() {
         this.missile = this.add.sprite(0, this.sys.game.config.height * 0.1, "missile");
         this.missile.setScale(0.6);
-        this.missile.setTint(0xff2222);
         this.missile.setDepth(10);
+        
+        // Add small blinking red light on the missile
+        this.missileLight = this.add.ellipse(0, 0, 8, 16, 0xff0000); // Larger ellipse for 0.6 scale missile (doubled from Stage 1)
+        this.missileLight.setDepth(11); // Above the missile
+        this.missileLight.setAlpha(0.8); // Set slight opacity (80% visible)
+        
+        // Position the light on the missile (adjust x,y offset as needed for your sprite)
+        this.updateMissileLightPosition();
+        
+        // Add blinking animation to just the light
+        this.tweens.add({
+            targets: this.missileLight,
+            alpha: 0.2, // Fade to very dim
+            duration: 2000,  // Ominous slow blink
+            yoyo: true,     // Go back to full brightness
+            repeat: -1,     // Infinite loop
+            ease: 'Sine.easeInOut'
+        });
+    }
+    
+    // Helper function to keep light positioned on missile
+    updateMissileLightPosition() {
+        if (this.missile && this.missileLight) {
+            // Adjust these offsets based on where you want the light on your missile sprite
+            // Positive x = right, negative x = left
+            // Positive y = down, negative y = up
+            // Scaled proportionally for 0.6 scale missile (vs 0.3 in Stage 1)
+            const lightOffsetX = 55; // 50 pixels to the right (doubled from Stage 1's 25)
+            const lightOffsetY = 0; // 10 pixels above missile center (doubled from Stage 1's -5)
+            
+            this.missileLight.x = this.missile.x + lightOffsetX;
+            this.missileLight.y = this.missile.y + lightOffsetY;
+        }
     }
 
     // --- UI INITIALIZATION ---
@@ -641,20 +683,35 @@ class Stage2 extends Phaser.Scene {
             this.gameState.obstaclesAvoided++;
             return;
         }
-        
-        if (!obstacle.isHit && this.gameState.collisionCooldown <= 0) {
+          if (!obstacle.isHit && this.gameState.collisionCooldown <= 0) {
             this.gameState.momentum = Math.max(10, 
                 this.gameState.momentum - window.stage2Options.momentumLossPerCollision);
             this.gameState.collisions++;
             
             this.gameState.collisionCooldown = 45;
             
-            this.cameras.main.shake(150, 0.015);
-            this.player.setTint(0xff4444);
+            // Add Stage 1's sophisticated collision tinting system
+            this.showingCollisionTint = true;
+            this.currentTintState = 'collision';
             
-            this.time.delayedCall(300, () => {
-                if (!this.isDashing && !this.dashInvulnerable && !this.isDashJumping) {
-                    this.player.setTint(0x0088ff);
+            // Visual feedback for collision - red flash and screen shake
+            this.cameras.main.flash(50, 255, 0, 0, false); // Brief red flash
+            this.cameras.main.shake(150, 0.015);
+            this.player.setTint(0xff4444); // Red collision tint
+            
+            this.time.delayedCall(200, () => {
+                this.showingCollisionTint = false;
+                
+                // Reset to appropriate tint state based on current player state
+                if (this.isDashing || this.dashInvulnerable || this.isDashJumping || this.isReturningFromDashJump) {
+                    this.player.setTint(0x4444ff); // Blue tint for invulnerability (consistent with Stage 1)
+                    this.currentTintState = 'invulnerable';
+                } else if (this.isDiving) {
+                    this.player.setTint(0xffff00); // Yellow for diving
+                    this.currentTintState = 'diving';
+                } else {
+                    this.player.clearTint();
+                    this.currentTintState = 'none';
                 }
             });
 
@@ -663,7 +720,7 @@ class Stage2 extends Phaser.Scene {
             obstacle.isHit = true;
             this.time.delayedCall(500, () => {
                 obstacle.isHit = false;            });
-        }    
+        }
     }
 
     // Check if player has fallen into a pit
@@ -683,6 +740,9 @@ class Stage2 extends Phaser.Scene {
         this.gameState.missilePosition = Math.min(100, this.gameState.missilePosition);
 
         this.missile.x = (this.gameState.missilePosition / 100) * this.sys.game.config.width;
+        
+        // Update missile light position to follow the missile
+        this.updateMissileLightPosition();
 
         const deltaSeconds = delta / 1000;
         this.gameState.stageDistance += this.getAdjustedSpeed() * deltaSeconds;
@@ -699,9 +759,7 @@ class Stage2 extends Phaser.Scene {
             this.completeStage("You caught the missile on the rooftops!");
         }        else if (this.gameState.missilePosition >= 100 && !this.gameState.gameComplete && !this.gameState.gameOver) {
             this.triggerGameOver("The missile escaped into the sky!");
-        }    }    
-
-    // --- STAGE COMPLETION ---
+        }    }        // --- STAGE COMPLETION ---
     completeStage(reason) {
         this.gameState.gameComplete = true;
         this.gameState.completionReason = reason;
@@ -710,8 +768,7 @@ class Stage2 extends Phaser.Scene {
         this.pointerJustDown = false;
         this.pointerIsDown = false;
         
-        // Immediately block further transitions
-        this.sceneTransitioning = true;
+        // Don't block transitions immediately - let buttons work for scene switching
         
         const timeBonus = Math.round((100 - this.gameState.missilePosition) * 15);
         const momentumBonus = Math.round(this.gameState.momentum * 8);
@@ -720,22 +777,32 @@ class Stage2 extends Phaser.Scene {
         this.gameState.score += timeBonus + momentumBonus + avoidanceBonus;
         
         this.physics.pause();
-        
-        if (this.domElements.gameOverScreen) {
-            this.domElements.gameOverReason.textContent = `${reason} Mission Complete!`;
+          if (this.domElements.gameOverScreen) {
+            this.domElements.gameOverReason.textContent = `${reason} Mission Complete! Returning to menu...`;
             this.domElements.gameOverScore.textContent = `Final Score: ${this.gameState.score}`;
             this.domElements.gameOverScreen.style.display = 'block';
         }
-        
-        this.cameras.main.flash(500, 0, 255, 0);
+          this.cameras.main.flash(500, 0, 255, 0);
         this.player.setTint(0x00ff00);
+          console.log("🎉 Stage 2 completed! Mission Complete!");
         
-        console.log("🎉 Stage 2 completed! Mission Complete!");
-        
-        // Hide completion screen after delay - no automatic transition since this is the final stage
-        this.time.delayedCall(5000, () => {
+        // Transition back to SceneSwitcher after a delay to match other stages
+        this.time.delayedCall(3000, () => {
+            console.log("⏰ 3 second delay complete - starting transition to SceneSwitcher");
+            if (this.sceneTransitioning) {
+                console.log("⚠️ Scene already transitioning, aborting");
+                return;
+            }
+            this.sceneTransitioning = true;
+            console.log("🔄 Starting scene transition to SceneSwitcher");
+            
+            // Hide the completion screen before transitioning
             if (this.domElements.gameOverScreen) this.domElements.gameOverScreen.style.display = 'none';
-            if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';        });
+            if (this.domElements.instructions) this.domElements.instructions.style.display = 'none';
+            
+            console.log("🚀 Calling this.scene.start('SceneSwitcher')");
+            this.scene.start("SceneSwitcher");
+        });
     }
 
     updateScore(points = 15) {
@@ -817,9 +884,8 @@ class Stage2 extends Phaser.Scene {
                 window.stage2Options.playerStartPosition + 120
             )
         );
-        
-        this.player.setVelocityX(700); // Faster dash on rooftops
-        this.player.setTint(0x00ffff);
+          this.player.setVelocityX(700); // Faster dash on rooftops
+        this.player.setTint(0x4444ff); // Blue tint for invulnerability (consistent with Stage 1)
         
         this.tweens.add({
             targets: this.player,
@@ -847,9 +913,8 @@ class Stage2 extends Phaser.Scene {
                         onComplete: () => {
                             this.isDashTweening = false;
                             this.dashInvulnerable = false;
-                            
-                            if (this.isPlayerGrounded() && !this.isDashing && !this.isDashJumping) {
-                                this.player.setTint(0x0088ff);
+                              if (this.isPlayerGrounded() && !this.isDashing && !this.isDashJumping) {
+                                this.player.clearTint(); // Show natural sprite colors
                             }
                         }
                     });
@@ -990,10 +1055,9 @@ class Stage2 extends Phaser.Scene {
                 this.isReturningFromDashJump = false;
                 this.isDashJumpReturning = false;
                 this.dashInvulnerable = false;
-                
-                if (this.isPlayerGrounded() && !this.isDashing && !this.isDashJumping && !this.isDiving) {
-                    this.player.setTint(0x0088ff);
-                }            }
+                  if (this.isPlayerGrounded() && !this.isDashing && !this.isDashJumping && !this.isDiving) {
+                    this.player.clearTint(); // Show natural sprite colors
+                }}
         });    }    
 
     // --- MAIN UPDATE LOOP ---
@@ -1127,10 +1191,9 @@ class Stage2 extends Phaser.Scene {
         }
 
         // Ground state changes
-        if (this.isPlayerGrounded() && !this.wasGrounded) {
-            if (this.isDiving) {
+        if (this.isPlayerGrounded() && !this.wasGrounded) {            if (this.isDiving) {
                 this.isDiving = false;
-                this.player.setTint(0x0088ff);
+                this.player.clearTint(); // Show natural sprite colors
             }
             this.isJumping = false;
             this.jumpTimer = 0;
@@ -1153,25 +1216,40 @@ class Stage2 extends Phaser.Scene {
 
         if (!this.shiftKey.isDown && (this.time.now - this.lastDashTime > this.dashCooldown)) {
             this.dashReady = true;
-        }
-
-        // Visual feedback for different states
-        if (this.canDashJump()) {
-            this.player.setTint(0xffaa00); // Orange for dash jump window
-        } else if (this.isDashJumping) {
-            this.player.setTint(0xffff00); // Yellow during dash jump
-        } else if (this.isReturningFromDashJump) {
-            this.player.setTint(0xaaffaa); // Light green during return
-        } else if (this.isDashing) {
-            this.player.setTint(0x00ffff); // Cyan during dash
-        } else if (this.dashInvulnerable) {
-            this.player.setTint(0x88ffff); // Light cyan during invulnerable
-        } else if (this.isDiving) {
-            this.player.setTint(0xffff00); // Yellow during dive
-        } else if (this.isPlayerGrounded()) {
-            this.player.setTint(0x0088ff); // Normal blue when grounded
-        } else {
-            this.player.setTint(0x00ff00); // Green when jumping
+        }        
+        
+        // Enhanced visual feedback for different states - using Stage 1's sophisticated tinting system
+        if (!this.showingCollisionTint) {
+            let targetTintState;
+            
+            if (this.isDiving) {
+                targetTintState = 'diving';
+            } else if (this.isDashing || this.dashInvulnerable || this.isDashJumping || this.isReturningFromDashJump) {
+                targetTintState = 'invulnerable';
+            } else if (this.canDashJump()) {
+                targetTintState = 'dash_jump_ready';
+            } else if (this.isPlayerGrounded()) {
+                targetTintState = 'grounded';
+            } else {
+                targetTintState = 'jumping';
+            }
+            
+            // Only change tint if state has changed
+            if (this.currentTintState !== targetTintState) {
+                if (targetTintState === 'diving') {
+                    this.player.setTint(0xffff00); // Yellow for diving
+                } else if (targetTintState === 'invulnerable') {
+                    this.player.setTint(0x4444ff); // Blue tint for invulnerability (consistent with Stage 1)
+                } else if (targetTintState === 'dash_jump_ready') {
+                    this.player.setTint(0xffaa00); // Orange for dash jump window                } else if (targetTintState === 'grounded') {
+                    this.player.clearTint(); // Show natural sprite colors when grounded
+                } else if (targetTintState === 'jumping') {
+                    this.player.setTint(0x00ff00); // Green when jumping
+                } else {
+                    this.player.clearTint(); // Default state - show natural sprite colors
+                }
+                this.currentTintState = targetTintState;
+            }
         }
 
         this.updateUI();        

@@ -142,9 +142,12 @@ class tower1 extends Phaser.Scene {
         this.dashInvulnerable = false;
           // Dash jump state
         this.isDashJumping = false;
-        this.dashJumpStartTime = 0;
-          // Dive state
+        this.dashJumpStartTime = 0;        // Dive state
         this.isDiving = false;
+        
+        // Tinting system (from Stage 1)
+        this.showingCollisionTint = false;
+        this.currentTintState = 'none'; // none, collision, invulnerable, diving
         
         // Momentum boost state
         this.hasMomentumBoost = false;
@@ -215,7 +218,7 @@ class tower1 extends Phaser.Scene {
             gameOverScore: document.getElementById('gameOverScore'),
             instructions: document.getElementById('instructionsDisplay'),
             jumpButton: document.getElementById('jumpButton'),
-            dashButton: document.getElementById('dashButton'), // Add dash button
+            dashButton: document.getElementById('dashButton'), 
             gameOverRestartButtonMobile: document.getElementById('gameOverRestartButtonMobile'),
             gameOverMenuButtonMobile: document.getElementById('gameOverMenuButtonMobile'),
         };
@@ -263,7 +266,8 @@ class tower1 extends Phaser.Scene {
             stateColor = '#ff8800';
         } else if (this.dashInvulnerable) {
             stateText = 'INVULNERABLE';
-            stateColor = '#88ffff';        } else if (this.isDiving) {
+            stateColor = '#88ffff';
+        } else if (this.isDiving) {
             stateText = 'DIVING';
             stateColor = '#ffff00';
         } else if (this.canWallJump) {
@@ -390,11 +394,10 @@ class tower1 extends Phaser.Scene {
             leftPlatformX,  // X: Center of first left platform
             leftStartPlatformY - 40,  // Y: Above the platform (platform top - player height)
             "player_run1"
-        );
-        this.player.setGravityY(window.tower1Options.playerGravity);
+        );        this.player.setGravityY(window.tower1Options.playerGravity);
         this.player.setCollideWorldBounds(true);
         this.player.setBounce(0.1);
-        this.player.setTint(0x0088ff);
+        // No base tint - let natural sprite colors show through
         
         // Wait for texture to load, then align feet to platform
         this.player.on('texturecomplete', () => {
@@ -501,7 +504,8 @@ class tower1 extends Phaser.Scene {
             if (this.domElements.dashButton) this.domElements.dashButton.style.display = 'none';
             if (this.domElements.jumpButton) this.domElements.jumpButton.style.display = 'none';
         };
-        window.addEventListener('keydown', this.hideOnScreenButtonsHandler);        // Restart/menu buttons - Fixed with proper context and touchstart events
+        // Restart/menu buttons - Fixed with proper context and touchstart events
+        window.addEventListener('keydown', this.hideOnScreenButtonsHandler);        
         if (this.domElements.gameOverRestartButtonMobile) {
             this.domElements.gameOverRestartButtonMobile.addEventListener('click', () => {
                 console.log("🔄 RESTART BUTTON CLICKED");
@@ -757,10 +761,9 @@ class tower1 extends Phaser.Scene {
         this.isOnGround = false;
         this.isJumping = true;
         this.jumpHoldTime = 0;
-        this.jumpStartTime = this.time.now;
-        this.isDiving = false; // Stop any diving
+        this.jumpStartTime = this.time.now;        this.isDiving = false; // Stop any diving
         
-        this.player.setTint(0x00ffff);
+        this.player.setTint(0x4444ff); // Blue tint for invulnerability (consistent with Stage 1)
     }// Dash mechanics (from Stage1/2)
     doDash() {
         if (!this.dashReady || this.gameState.gameOver || this.gameState.gameComplete) return;
@@ -798,9 +801,8 @@ class tower1 extends Phaser.Scene {
             75, // Don't go into left wall
             this.sys.game.config.width - 75 // Don't go into right wall
         );
-        
-        // Visual feedback
-        this.player.setTint(0x00ffff); // Cyan during dash
+          // Visual feedback
+        this.player.setTint(0x4444ff); // Blue tint for invulnerability (consistent with Stage 1)
         this.cameras.main.flash(50, 0, 255, 255, false);
         
         // Perform dash movement
@@ -820,9 +822,8 @@ class tower1 extends Phaser.Scene {
                     if (!this.isDashJumping) {
                         this.isDashTweening = false;
                         this.dashInvulnerable = false;
-                        
-                        if (!this.isDashing && !this.isDashJumping && !this.isDiving) {
-                            this.player.setTint(0x0088ff);
+                          if (!this.isDashing && !this.isDashJumping && !this.isDiving) {
+                            this.player.clearTint(); // Show natural sprite colors
                         }
                     }
                 });
@@ -1200,34 +1201,53 @@ class tower1 extends Phaser.Scene {
             this.isDiving = false;
         }
 
-        this.wasGrounded = this.isOnGround;        // Enhanced visual feedback based on state (simplified for tower)
-        if (this.canDashJump()) {
-            this.player.setTint(0xffaa00); // Orange for dash jump window
-        } else if (this.isDashJumping) {
-            this.player.setTint(0xffff00); // Yellow during dash jump
-        } else if (this.isDashing) {
-            this.player.setTint(0x00ffff); // Cyan during dash
-        } else if (this.hasMomentumBoost) {
-            this.player.setTint(0xff8800); // Orange during momentum boost
-        } else if (this.dashInvulnerable) {
-            this.player.setTint(0x88ffff); // Light cyan when invulnerable        
-        } else if (this.isDiving) {
-            this.player.setTint(0xffff00); // Yellow during dive
-        } else if (this.isOnGround) {
-            this.player.setTint(0x0088ff); // Blue when grounded
-        } else if (this.isJumping) {
-            this.player.setTint(0x00ff00); // Green when jumping
-        } else {
-            // Default blue tint when running
-            this.player.setTint(0x0088ff);
-        }
-        
+        this.wasGrounded = this.isOnGround;        // Enhanced visual feedback based on state - using Stage 1's sophisticated tinting system
+        if (!this.showingCollisionTint) {
+            let targetTintState;
+            
+            if (this.isDiving) {
+                targetTintState = 'diving';
+            } else if (this.isDashing || this.dashInvulnerable || this.isDashJumping) {
+                targetTintState = 'invulnerable';
+            } else if (this.canDashJump()) {
+                targetTintState = 'dash_jump_ready';
+            } else if (this.hasMomentumBoost) {
+                targetTintState = 'momentum_boost';
+            } else if (this.isOnGround) {
+                targetTintState = 'grounded';
+            } else if (this.isJumping) {
+                targetTintState = 'jumping';
+            } else {
+                targetTintState = 'none';
+            }
+            
+            // Only change tint if state has changed
+            if (this.currentTintState !== targetTintState) {
+                if (targetTintState === 'diving') {
+                    this.player.setTint(0xffff00); // Yellow for diving
+                } else if (targetTintState === 'invulnerable') {
+                    this.player.setTint(0x4444ff); // Blue tint for invulnerability (consistent with Stage 1)
+                } else if (targetTintState === 'dash_jump_ready') {
+                    this.player.setTint(0xffaa00); // Orange for dash jump window                } else if (targetTintState === 'momentum_boost') {
+                    this.player.setTint(0xff8800); // Orange during momentum boost
+                } else if (targetTintState === 'grounded') {
+                    this.player.clearTint(); // Show natural sprite colors when grounded
+                } else if (targetTintState === 'jumping') {
+                    this.player.setTint(0x00ff00); // Green when jumping
+                } else {
+                    this.player.clearTint(); // Default state - show natural sprite colors
+                }
+                this.currentTintState = targetTintState;
+            }
+        }        
         // Flip player sprite based on run direction
         this.player.setFlipX(this.runDirection === -1);
 
         this.updateUI();
         this.pointerJustDown = false;
-    }    shutdown() {
+    }
+
+    shutdown() {
         if (this.timeTimer) {
             this.timeTimer.remove();
         }
