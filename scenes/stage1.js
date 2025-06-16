@@ -30,13 +30,64 @@ class Stage1 extends Phaser.Scene {
     }    preload() {
         this.load.image("platform", "./assets/sprites/platformb.png");
         this.load.image("missile", "./assets/sprites/missile.png");
-        this.load.image("sky", "./assets/sprites/bg2.jpg");
-          // Load pedestrian sprites
+        this.load.image("sky", "./assets/sprites/bg2.jpg");        // Load pedestrian sprites
         this.load.image("pedestrian_jaycean", "./assets/sprites/Jaycean.png");
         this.load.image("pedestrian_mandy", "./assets/sprites/Mandy.png");
         this.load.image("pedestrian_ricky", "./assets/sprites/Ricky.png");
         this.load.image("pedestrian_delouise", "./assets/sprites/delouise.png");
         this.load.image("pedestrian_slob", "./assets/sprites/Slob.png");
+        
+        // Load Mandy animation sprite sheets
+        this.load.spritesheet('mandy_run1', './assets/sprites/mandySheet-001.png', {
+            frameWidth: 192,
+            frameHeight: 108
+        });
+        this.load.spritesheet('mandy_run2', './assets/sprites/mandySheet-002.png', {
+            frameWidth: 192,
+            frameHeight: 108
+        });
+        this.load.spritesheet('mandy_run3', './assets/sprites/mandySheet-003.png', {
+            frameWidth: 192,
+            frameHeight: 108
+        });        this.load.spritesheet('mandy_run4', './assets/sprites/mandySheet-004.png', {
+            frameWidth: 192,
+            frameHeight: 108
+        });
+        
+        // Load Slob animation sprite sheets
+        this.load.spritesheet('slob_run1', './assets/sprites/slobSheet-001.png', {
+            frameWidth: 192,
+            frameHeight: 108
+        });
+        this.load.spritesheet('slob_run2', './assets/sprites/slobSheet-002.png', {
+            frameWidth: 192,
+            frameHeight: 108
+        });
+        this.load.spritesheet('slob_run3', './assets/sprites/slobSheet-003.png', {
+            frameWidth: 192,
+            frameHeight: 108
+        });        this.load.spritesheet('slob_run4', './assets/sprites/slobSheet-004.png', {
+            frameWidth: 192,
+            frameHeight: 108
+        });
+        
+        // Load Ricky animation sprite sheets
+        this.load.spritesheet('ricky_run1', './assets/sprites/rickySheet-001.png', {
+            frameWidth: 192,
+            frameHeight: 108
+        });
+        this.load.spritesheet('ricky_run2', './assets/sprites/rickySheet-002.png', {
+            frameWidth: 192,
+            frameHeight: 108
+        });
+        this.load.spritesheet('ricky_run3', './assets/sprites/rickySheet-003.png', {
+            frameWidth: 192,
+            frameHeight: 108
+        });
+        this.load.spritesheet('ricky_run4', './assets/sprites/rickySheet-004.png', {
+            frameWidth: 192,
+            frameHeight: 108
+        });
         
         // Load player run spritesheets
         this.load.spritesheet('player_run1', './assets/sprites/player_run_sheet1.png', {
@@ -66,14 +117,56 @@ class Stage1 extends Phaser.Scene {
             ...this.anims.generateFrameNumbers('player_run2', { start: 0, end: 25 }),
             ...this.anims.generateFrameNumbers('player_run3', { start: 0, end: 25 }),
             ...this.anims.generateFrameNumbers('player_run4', { start: 0, end: 25 })
-        ];
-        this.anims.create({
+        ];        this.anims.create({
             key: 'run',
             frames: runFrames,
             frameRate: 16,
             repeat: -1
         });
-        // --- END PLAYER ANIMATIONS SETUP ---  
+        
+        // --- MANDY ANIMATIONS SETUP ---
+        const mandyRunFrames = [
+            ...this.anims.generateFrameNumbers('mandy_run1', { start: 0, end: 25 }),
+            ...this.anims.generateFrameNumbers('mandy_run2', { start: 0, end: 25 }),
+            ...this.anims.generateFrameNumbers('mandy_run3', { start: 0, end: 25 }),
+            ...this.anims.generateFrameNumbers('mandy_run4', { start: 0, end: 25 })
+        ];
+        this.anims.create({
+            key: 'mandy_run',
+            frames: mandyRunFrames,
+            frameRate: 16,
+            repeat: -1        });
+        // --- END MANDY ANIMATIONS SETUP ---
+        
+        // --- SLOB ANIMATIONS SETUP ---
+        const slobRunFrames = [
+            ...this.anims.generateFrameNumbers('slob_run1', { start: 0, end: 25 }),
+            ...this.anims.generateFrameNumbers('slob_run2', { start: 0, end: 25 }),
+            ...this.anims.generateFrameNumbers('slob_run3', { start: 0, end: 25 }),
+            ...this.anims.generateFrameNumbers('slob_run4', { start: 0, end: 25 })
+        ];
+        this.anims.create({
+            key: 'slob_run',
+            frames: slobRunFrames,
+            frameRate: 16,
+            repeat: -1        });
+        // --- END SLOB ANIMATIONS SETUP ---
+        
+        // --- RICKY ANIMATIONS SETUP ---
+        const rickyRunFrames = [
+            ...this.anims.generateFrameNumbers('ricky_run1', { start: 0, end: 25 }),
+            ...this.anims.generateFrameNumbers('ricky_run2', { start: 0, end: 25 }),
+            ...this.anims.generateFrameNumbers('ricky_run3', { start: 0, end: 25 }),
+            ...this.anims.generateFrameNumbers('ricky_run4', { start: 0, end: 25 })
+        ];
+        this.anims.create({
+            key: 'ricky_run',
+            frames: rickyRunFrames,
+            frameRate: 16,
+            repeat: -1
+        });
+        // --- END RICKY ANIMATIONS SETUP ---
+        // --- END PLAYER ANIMATIONS SETUP ---
         // Add sky background - shifted left and down
 
         this.sky = this.add.image(0, -30, 'sky').setOrigin(0, 0).setDepth(-100);
@@ -548,20 +641,35 @@ class Stage1 extends Phaser.Scene {
     setupPedestrians() {        this.pedestrian1 = this.physics.add.sprite(
             this.sys.game.config.width + 100,
             this.originY,
-            "pedestrian_ricky"
-        );
-        this.pedestrian1.setImmovable(true);this.pedestrian2 = this.physics.add.sprite(
+            "ricky_run1"  // Use sprite sheet instead of static image
+        );        this.pedestrian1.setImmovable(true);
+        this.pedestrian1.anims.play('ricky_run');  // Start Ricky's animation
+        // Set collision mask for Ricky
+        this.pedestrian1.body.setSize(60, 90);
+        this.pedestrian1.body.setOffset(66, 9);
+
+        this.pedestrian2 = this.physics.add.sprite(
             this.sys.game.config.width + 300,
             this.originY,
-            "pedestrian_mandy"
-        );
-        this.pedestrian2.setImmovable(true);        this.pedestrian3 = this.physics.add.sprite(
+            "mandy_run1"  // Use sprite sheet instead of static image
+        );        this.pedestrian2.setImmovable(true);
+        this.pedestrian2.anims.play('mandy_run');  // Start Mandy's animation
+        // Set collision mask for Mandy
+        this.pedestrian2.body.setSize(60, 90);
+        this.pedestrian2.body.setOffset(66, 9);
+
+        this.pedestrian3 = this.physics.add.sprite(
             this.sys.game.config.width + 500,
             this.originY,
-            "pedestrian_slob"
-        );
-        this.pedestrian3.setImmovable(true);
-        this.pedestrian3.setScale(1.3);        this.pedestrian4 = this.physics.add.sprite(
+            "slob_run1"  // Use sprite sheet instead of static image
+        );        this.pedestrian3.setImmovable(true);
+        this.pedestrian3.setScale(1.3);
+        this.pedestrian3.anims.play('slob_run');  // Start Slob's animation
+        // Set collision mask for Slob (adjusted for 1.3 scale)
+        this.pedestrian3.body.setSize(78, 117);  // 60*1.3 = 78, 90*1.3 = 117
+        this.pedestrian3.body.setOffset(57, 0);  // Adjusted offset for larger sprite
+
+        this.pedestrian4 = this.physics.add.sprite(
             this.sys.game.config.width + 700,
             this.originY+20,
             "pedestrian_delouise"
@@ -1082,17 +1190,46 @@ class Stage1 extends Phaser.Scene {
         for (let wave = 0; wave < numWaves; wave++) {
             for (let i = 0; i < pedestriansPerWave; i++) {
                 // Randomly select a pedestrian sprite
-                const randomSprite = pedestrianSprites[Math.floor(Math.random() * pedestrianSprites.length)];
+                const randomSprite = pedestrianSprites[Math.floor(Math.random() * pedestrianSprites.length)];                // Use sprite sheet for Mandy, Slob, and Ricky, static image for others
+                let spriteKey = randomSprite;
+                if (randomSprite === "pedestrian_mandy") {
+                    spriteKey = "mandy_run1";
+                } else if (randomSprite === "pedestrian_slob") {
+                    spriteKey = "slob_run1";
+                } else if (randomSprite === "pedestrian_ricky") {
+                    spriteKey = "ricky_run1";
+                }
                 
                 const extraPed = this.physics.add.sprite(
                     this.sys.game.config.width + 200 + (wave * 350) + (i * 100),
                     this.originY,
-                    randomSprite
+                    spriteKey
                 );
+                  // Start animations for animated characters
+                if (randomSprite === "pedestrian_mandy") {
+                    extraPed.anims.play('mandy_run');
+                } else if (randomSprite === "pedestrian_slob") {
+                    extraPed.anims.play('slob_run');
+                } else if (randomSprite === "pedestrian_ricky") {
+                    extraPed.anims.play('ricky_run');
+                }
                 
                 extraPed.setImmovable(true);
                 extraPed.isHit = false;
                 extraPed.setScale(1.1);
+                
+                // Set collision masks for animated characters (adjusted for 1.1 scale)
+                if (randomSprite === "pedestrian_mandy" || randomSprite === "pedestrian_ricky") {
+                    extraPed.body.setSize(66, 99);  // 60*1.1 = 66, 90*1.1 = 99
+                    extraPed.body.setOffset(63, 5);  // Adjusted offset for scaled sprite
+                } else if (randomSprite === "pedestrian_slob") {
+                    extraPed.body.setSize(66, 99);  // Same size for consistency
+                    extraPed.body.setOffset(63, 5);
+                } else if (randomSprite === "pedestrian_delouise") {
+                    // Delouise has different scaling (0.5 base * 1.1 barrage = 0.55 total)
+                    extraPed.body.setSize(66, 99);  // Keep same collision size for consistency
+                    extraPed.body.setOffset(63, 5);
+                }
                 
                 const speedVariation = 0.9 + (Math.random() * 0.4);
                 extraPed.setVelocityX(-this.getAdjustedSpeed() * speedVariation);

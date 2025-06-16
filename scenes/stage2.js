@@ -36,15 +36,18 @@ class Stage2 extends Phaser.Scene {
         super("Stage2");
         this.hideOnScreenButtonsHandler = null;
         this.sceneTransitioning = false;
-    }
-
-    // --- ASSET LOADING ---
+    }    // --- ASSET LOADING ---
 
     preload() {        // Load building and sprites
         this.load.image("building", "./assets/sprites/platformb.png");
-        this.load.image("obstacle", "./assets/sprites/player.png");
         this.load.image("missile", "./assets/sprites/missile.png");
         this.load.image("bg3", "./assets/sprites/bg3.jpg");
+        
+        // Load new obstacle sprites
+        this.load.image("ac", "./assets/sprites/ac.png");
+        this.load.image("chair", "./assets/sprites/chair.png");
+        this.load.image("dish", "./assets/sprites/dish.png");
+        this.load.image("vent", "./assets/sprites/vent.png");
         
         // Load player animation sprite sheets
         const sheetConfig = { frameWidth: 192, frameHeight: 108 };
@@ -422,40 +425,42 @@ class Stage2 extends Phaser.Scene {
             window.stage2Options.playerStartPosition,
             playerStartY,
             "player_run1"
-        );
-        this.player.setGravityY(window.stage2Options.playerGravity);
-        this.player.setCollideWorldBounds(true, false, false, false, true);
+        );        this.player.setGravityY(window.stage2Options.playerGravity);
+        // Disable world bounds so player can fall through bottom
+        this.player.setCollideWorldBounds(false);
         
         // Wait for texture to load, then align feet to platform
         this.player.on('texturecomplete', () => {
             this.player.y = this.landingPlatformY - (this.player.displayHeight / 2) + 4; // +4 for fine-tuning
+            // Player collision box: 60x90 pixels, offset 66px right to center on character body
             this.player.body.setSize(60, 90);
             this.player.body.setOffset(66, 0); // y offset 0, so feet match collision box
-        });        // If already loaded, set immediately
+        });
+        // If already loaded, set immediately
         if (this.player.texture.key) {
             this.player.y = this.landingPlatformY - (this.player.displayHeight / 2) + 4;
+            // Player collision box: 60x90 pixels, offset 66px right to center on character body
             this.player.body.setSize(60, 90);
             this.player.body.setOffset(66, 0);
         }
         
-        this.player.anims.play('run');
-    }
+        this.player.anims.play('run');    }
 
     // --- OBSTACLE SYSTEM ---
     // Setup rooftop obstacles (air conditioners, satellite dishes, etc.)
     setupObstacles() {
-        // Create different types of obstacles
+        // Create different types of obstacles with their corresponding sprites
         this.obstacleTypes = [
-            { tint: 0xcccccc, scale: 0.8, name: "AC Unit" },      // Gray AC unit
-            { tint: 0x888888, scale: 1.2, name: "Satellite" },   // Dark satellite dish
-            { tint: 0xaa6644, scale: 0.6, name: "Furniture" },   // Brown patio furniture
-            { tint: 0x444444, scale: 1.0, name: "Vent" }         // Dark vent
+            { sprite: "ac", scale: 0.8, name: "AC Unit", yOffset: -40, collisionWidth: 45, collisionHeight: 35 },
+            { sprite: "dish", scale: 1.2, name: "Satellite", yOffset: -50, collisionWidth: 50, collisionHeight: 40 },
+            { sprite: "chair", scale: 0.6, name: "Furniture", yOffset: -35, collisionWidth: 25, collisionHeight: 30 },
+            { sprite: "vent", scale: 1.0, name: "Vent", yOffset: -50, collisionWidth: 40, collisionHeight: 35 }
         ];
 
         // Create a pool of obstacle sprites for reuse
         this.obstaclePool = [];
         for (let i = 0; i < 12; i++) {
-            const obstacle = this.physics.add.sprite(-1000, -1000, "obstacle");
+            const obstacle = this.physics.add.sprite(-1000, -1000, "ac"); // Default sprite, will be changed when used
             obstacle.setImmovable(true);
             obstacle.setVisible(false);
             obstacle.setActive(false);
@@ -476,22 +481,23 @@ class Stage2 extends Phaser.Scene {
         
         if (Math.random() < spawnChance) {
             // Try to get an obstacle from the pool
-            const availableObstacle = this.obstaclePool.find(obs => !obs.active);
-            
-            if (availableObstacle) {
-                // Position obstacle on top of building
-                const offsetX = Phaser.Math.Between(-building.displayWidth/3, building.displayWidth/3);
-                availableObstacle.x = building.x + offsetX;
-                availableObstacle.y = building.y - 50;
-                availableObstacle.setActive(true);
-                availableObstacle.setVisible(true);
-                
-                // Set obstacle properties
+            const availableObstacle = this.obstaclePool.find(obs => !obs.active);            if (availableObstacle) {
+                // Set obstacle properties first to get the correct sprite
                 const obstacleType = Phaser.Utils.Array.GetRandom(this.obstacleTypes);
-                availableObstacle.setTint(obstacleType.tint);
+                availableObstacle.setTexture(obstacleType.sprite); // Use the new sprite instead of tint
                 availableObstacle.setScale(obstacleType.scale);
                 availableObstacle.obstacleType = obstacleType.name;
                 availableObstacle.isHit = false;
+                
+                // Set collision boundaries for better collision detection
+                availableObstacle.body.setSize(obstacleType.collisionWidth, obstacleType.collisionHeight);
+                
+                // Position obstacle on top of building with individual Y offset
+                const offsetX = Phaser.Math.Between(-building.displayWidth/3, building.displayWidth/3);
+                availableObstacle.x = building.x + offsetX;
+                availableObstacle.y = building.y + obstacleType.yOffset; // Use individual Y offset
+                availableObstacle.setActive(true);
+                availableObstacle.setVisible(true);
                 
                 // Tie obstacle to building movement
                 availableObstacle.parentBuilding = building;
@@ -720,18 +726,23 @@ class Stage2 extends Phaser.Scene {
             obstacle.isHit = true;
             this.time.delayedCall(500, () => {
                 obstacle.isHit = false;            });
-        }
-    }
+        }    }
 
     // Check if player has fallen into a pit
     checkPitfall() {
-        // If player falls below the lowest possible building level, they've fallen into a pit
-        const pitfallThreshold = this.sys.game.config.height * 0.95;
+        // Let player fall to bottom of screen (or slightly below) to show falling between buildings
+        const pitfallThreshold = this.sys.game.config.height + 50; // 50 pixels below screen bottom
+        
+        // Debug: Log player position when falling
+        if (this.player.y > this.sys.game.config.height * 0.8) {
+            console.log(`Player Y: ${this.player.y}, Screen Height: ${this.sys.game.config.height}, Threshold: ${pitfallThreshold}`);
+        }
         
         if (this.player.y > pitfallThreshold) {
-            this.triggerGameOver("You fell between the buildings!");            return true;
+            this.triggerGameOver("You fell between the buildings!");
+            return true;
         }
-        return false;    
+        return false;
     }
 
     // --- MISSILE CHASE MECHANICS ---
@@ -758,7 +769,7 @@ class Stage2 extends Phaser.Scene {
         if (this.gameState.stageProgress >= 100 && !this.gameState.gameComplete && !this.gameState.gameOver) {
             this.completeStage("You caught the missile on the rooftops!");
         }        else if (this.gameState.missilePosition >= 100 && !this.gameState.gameComplete && !this.gameState.gameOver) {
-            this.triggerGameOver("The missile escaped into the sky!");
+            this.triggerGameOver("The missile destroys the city!");
         }    }        // --- STAGE COMPLETION ---
     completeStage(reason) {
         this.gameState.gameComplete = true;
@@ -1161,7 +1172,7 @@ class Stage2 extends Phaser.Scene {
 
         // Check if player fell off the bottom of the screen
         if (this.player.y > this.sys.game.config.height + 100) {
-            this.triggerGameOver("You fell into the abyss between buildings!");
+            this.triggerGameOver("You fell between buildings!");
             return;
         }
 
