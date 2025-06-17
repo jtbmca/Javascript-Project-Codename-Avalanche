@@ -5,7 +5,7 @@ window.gameOptions = window.gameOptions || {
     maxPlatformSpeed: 800,                     // Maximum platform speed cap (pixels/second)
     playerGravity: 1200,                       // Downward gravity force applied to player
     jumpForce: 400,                            // Initial upward velocity when jumping (reduced from 600 to 400 for proper tap jump)
-    maxJumpHold: 300,                          // Maximum time player can hold jump for variable height (milliseconds)
+    maxJumpHold: 325,                          // Maximum time player can hold jump for variable height (milliseconds)
     jumpHoldForce: 15,                         // Additional upward force applied per frame while holding jump (reduced from 60 to 15 for proper scaling)
     playerStartPosition: 200,                  // Player's default X position on screen (pixels from left)
     playerStartY: null,                        // Player's default Y position (null = auto, or set a value)
@@ -625,17 +625,19 @@ class Stage1 extends Phaser.Scene {
         this.player.setGravityY(window.gameOptions.playerGravity);
         this.player.setCollideWorldBounds(true, false, false, false, true);        this.playerJumps = 0;
         this.jumpTimer = 0;  
-        this.jumpBufferDuration = 150;// Wait for texture to load, then align feet to platform
+        this.jumpBufferDuration = 150;        // Wait for texture to load, then align feet to platform
         this.player.on('texturecomplete', () => {
             this.player.y = this.originY - (this.player.displayHeight / 2) + 4;
-            this.player.body.setSize(60, 90);
-            this.player.body.setOffset(66, 0);
+            // Tighter collision mask - reduced width and height for more precise collision detection
+            this.player.body.setSize(45, 75);  // Reduced from 60x90 to 45x75 (25% width reduction, 17% height reduction)
+            this.player.body.setOffset(73, 8); // Adjusted offset to center the smaller collision box on the character
         });
         // If already loaded, set immediately
         if (this.player.texture.key) {
             this.player.y = this.originY - (this.player.displayHeight / 2) + 4;
-            this.player.body.setSize(60, 90);
-            this.player.body.setOffset(66, 0);
+            // Tighter collision mask - reduced width and height for more precise collision detection
+            this.player.body.setSize(45, 75);  // Reduced from 60x90 to 45x75 (25% width reduction, 17% height reduction)
+            this.player.body.setOffset(73, 8); // Adjusted offset to center the smaller collision box on the character
         }
         this.player.anims.play('run');
     }
@@ -667,9 +669,9 @@ class Stage1 extends Phaser.Scene {
         );        this.pedestrian3.setImmovable(true);
         this.pedestrian3.setScale(1.3);
         this.pedestrian3.anims.play('slob_run');  // Start Slob's animation
-        // Set collision mask for Slob (adjusted for 1.3 scale)
-        this.pedestrian3.body.setSize(78, 117);  // 60*1.3 = 78, 90*1.3 = 117
-        this.pedestrian3.body.setOffset(57, 0);  // Adjusted offset for larger sprite
+        // Set tighter collision mask for Slob (adjusted for 1.3 scale)
+        this.pedestrian3.body.setSize(58, 98);  // Reduced from 78x117 to 58x98 (25% width reduction, 16% height reduction scaled)
+        this.pedestrian3.body.setOffset(67, 10); // Adjusted offset to center the smaller collision box on Slob
 
         this.pedestrian4 = this.physics.add.sprite(
             this.sys.game.config.width + 700,

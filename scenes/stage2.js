@@ -2,7 +2,7 @@
 // Jayceon emerges from a window and runs across building rooftops to catch the missile
 
 // --- STAGE 2 CONFIGURATION ---
-// Stage 2 specific game options (don't overwrite global gameOptions)
+// Stage 2 specific game options 
 window.stage2Options = {
     platformStartSpeed: 350,                   // Slightly faster base speed for rooftops
     platformSpeedIncrease: 20,                 // Faster acceleration on rooftops
@@ -428,20 +428,19 @@ class Stage2 extends Phaser.Scene {
         );        this.player.setGravityY(window.stage2Options.playerGravity);
         // Disable world bounds so player can fall through bottom
         this.player.setCollideWorldBounds(false);
-        
-        // Wait for texture to load, then align feet to platform
+          // Wait for texture to load, then align feet to platform
         this.player.on('texturecomplete', () => {
             this.player.y = this.landingPlatformY - (this.player.displayHeight / 2) + 4; // +4 for fine-tuning
-            // Player collision box: 60x90 pixels, offset 66px right to center on character body
-            this.player.body.setSize(60, 90);
-            this.player.body.setOffset(66, 0); // y offset 0, so feet match collision box
+            // Tighter collision mask - reduced width and height for more precise collision detection
+            this.player.body.setSize(45, 75);  // Reduced from 60x90 to 45x75 (25% width reduction, 17% height reduction)
+            this.player.body.setOffset(73, 8); // Adjusted offset to center the smaller collision box on the character
         });
         // If already loaded, set immediately
         if (this.player.texture.key) {
             this.player.y = this.landingPlatformY - (this.player.displayHeight / 2) + 4;
-            // Player collision box: 60x90 pixels, offset 66px right to center on character body
-            this.player.body.setSize(60, 90);
-            this.player.body.setOffset(66, 0);
+            // Tighter collision mask - reduced width and height for more precise collision detection
+            this.player.body.setSize(45, 75);  // Reduced from 60x90 to 45x75 (25% width reduction, 17% height reduction)
+            this.player.body.setOffset(73, 8); // Adjusted offset to center the smaller collision box on the character
         }
         
         this.player.anims.play('run');    }

@@ -398,18 +398,19 @@ class tower1 extends Phaser.Scene {
         this.player.setCollideWorldBounds(true);
         this.player.setBounce(0.1);
         // No base tint - let natural sprite colors show through
-        
-        // Wait for texture to load, then align feet to platform
+          // Wait for texture to load, then align feet to platform
         this.player.on('texturecomplete', () => {
             this.player.y = leftStartPlatformY - (this.player.displayHeight / 2) + 4; // +4 for fine-tuning
-            this.player.body.setSize(60, 90);
-            this.player.body.setOffset(66, 0); // y offset 0, so feet match collision box
+            // Tighter collision mask - reduced width and height for more precise collision detection
+            this.player.body.setSize(45, 75);  // Reduced from 60x90 to 45x75 (25% width reduction, 17% height reduction)
+            this.player.body.setOffset(73, 8); // Adjusted offset to center the smaller collision box on the character
         });
         // If already loaded, set immediately
         if (this.player.texture.key) {
             this.player.y = leftStartPlatformY - (this.player.displayHeight / 2) + 4;
-            this.player.body.setSize(60, 90);
-            this.player.body.setOffset(66, 0);
+            // Tighter collision mask - reduced width and height for more precise collision detection
+            this.player.body.setSize(45, 75);  // Reduced from 60x90 to 45x75 (25% width reduction, 17% height reduction)
+            this.player.body.setOffset(73, 8); // Adjusted offset to center the smaller collision box on the character
         }
         this.player.anims.play('run');
         
