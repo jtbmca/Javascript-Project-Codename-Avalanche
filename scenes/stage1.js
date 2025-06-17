@@ -17,7 +17,7 @@ window.gameOptions = window.gameOptions || {
     finalSprintThreshold: 80,                  // Stage progress percentage when final sprint begins (80% = intense spawn phase)
     stageDuration: 60,                         // Total time to complete the stage (60 seconds)
     stageTargetDistance: 17000,                // Distance player must travel to complete stage (pixels, increased from 15000)
-    missileSpeed: 1.70,                        // Missile progression rate as percentage per second (1.70% per second = 102% in 60s)
+    missileSpeed: 1.55,                        // Missile progression rate as percentage per second (1.70% per second = 102% in 60s[default] 1.55 for presentation)
     momentumLossPerCollision: 15,              // Momentum percentage lost when hitting pedestrians (affects speed)
     momentumRecoveryRate: 0.1                  // Rate at which momentum naturally recovers per frame (percentage points)
 };
@@ -30,8 +30,9 @@ class Stage1 extends Phaser.Scene {
     }    preload() {
         this.load.image("platform", "./assets/sprites/platformb.png");
         this.load.image("missile", "./assets/sprites/missile.png");
-        this.load.image("sky", "./assets/sprites/bg2.jpg");        // Load pedestrian sprites
+        this.load.image("sky", "./assets/sprites/bg2.jpg");        
         this.load.image("pedestrian_jaycean", "./assets/sprites/Jaycean.png");
+        this.load.image("pedestrian_jaycean2", "./assets/sprites/Jaycean2.png");
         this.load.image("pedestrian_mandy", "./assets/sprites/Mandy.png");
         this.load.image("pedestrian_ricky", "./assets/sprites/Ricky.png");
         this.load.image("pedestrian_delouise", "./assets/sprites/delouise.png");
@@ -111,6 +112,7 @@ class Stage1 extends Phaser.Scene {
     create() {
         // Reset scene transitioning flag
         this.sceneTransitioning = false;
+
         // --- PLAYER ANIMATIONS SETUP ---
         const runFrames = [
             ...this.anims.generateFrameNumbers('player_run1', { start: 0, end: 25 }),
@@ -120,7 +122,7 @@ class Stage1 extends Phaser.Scene {
         ];        this.anims.create({
             key: 'run',
             frames: runFrames,
-            frameRate: 16,
+            frameRate: 60,  
             repeat: -1
         });
         
@@ -130,13 +132,13 @@ class Stage1 extends Phaser.Scene {
             ...this.anims.generateFrameNumbers('mandy_run2', { start: 0, end: 25 }),
             ...this.anims.generateFrameNumbers('mandy_run3', { start: 0, end: 25 }),
             ...this.anims.generateFrameNumbers('mandy_run4', { start: 0, end: 25 })
-        ];
-        this.anims.create({
+        ];        this.anims.create({
             key: 'mandy_run',
             frames: mandyRunFrames,
-            frameRate: 16,
-            repeat: -1        });
-        // --- END MANDY ANIMATIONS SETUP ---
+            frameRate: 24,  
+            repeat: -1
+        });
+
         
         // --- SLOB ANIMATIONS SETUP ---
         const slobRunFrames = [
@@ -144,13 +146,13 @@ class Stage1 extends Phaser.Scene {
             ...this.anims.generateFrameNumbers('slob_run2', { start: 0, end: 25 }),
             ...this.anims.generateFrameNumbers('slob_run3', { start: 0, end: 25 }),
             ...this.anims.generateFrameNumbers('slob_run4', { start: 0, end: 25 })
-        ];
-        this.anims.create({
+        ];        this.anims.create({
             key: 'slob_run',
             frames: slobRunFrames,
-            frameRate: 16,
-            repeat: -1        });
-        // --- END SLOB ANIMATIONS SETUP ---
+            frameRate: 24,  
+            repeat: -1
+        });
+
         
         // --- RICKY ANIMATIONS SETUP ---
         const rickyRunFrames = [
@@ -158,16 +160,15 @@ class Stage1 extends Phaser.Scene {
             ...this.anims.generateFrameNumbers('ricky_run2', { start: 0, end: 25 }),
             ...this.anims.generateFrameNumbers('ricky_run3', { start: 0, end: 25 }),
             ...this.anims.generateFrameNumbers('ricky_run4', { start: 0, end: 25 })
-        ];
-        this.anims.create({
+        ];        this.anims.create({
             key: 'ricky_run',
             frames: rickyRunFrames,
-            frameRate: 16,
+            frameRate: 60,  
             repeat: -1
         });
-        // --- END RICKY ANIMATIONS SETUP ---
-        // --- END PLAYER ANIMATIONS SETUP ---
-        // Add sky background - shifted left and down
+
+
+        // Add sky background 
 
         this.sky = this.add.image(0, -30, 'sky').setOrigin(0, 0).setDepth(-100);
         this.sky.displayWidth = this.sys.game.config.width * 1.3;
@@ -220,7 +221,8 @@ class Stage1 extends Phaser.Scene {
             this.time.delayedCall(5000, () => {
                 if (instructions) instructions.style.display = 'none';
             });
-        }        // Initialize movement state        this.isDiving = false;
+        }        // Initialize movement state
+        this.isDiving = false;
         this.isJumping = false;
         this.jumpHoldTime = 0;
         this.showingCollisionTint = false; // Flag to prevent tint interference
