@@ -122,7 +122,7 @@ class Stage1 extends Phaser.Scene {
         ];        this.anims.create({
             key: 'run',
             frames: runFrames,
-            frameRate: 60,  
+            frameRate: 90,  
             repeat: -1
         });
         
